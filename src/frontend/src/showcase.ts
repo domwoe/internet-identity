@@ -248,9 +248,13 @@ const init = async () => {
     <main id="pageContent" aria-live="polite"></main>
     <div id="loaderContainer"></div>
     <div id="modalContainer" class="modal">
-      <div id="modalContent" class="modal-content">
+      <div class="modal-content" id="modalContent">
+          <div id="modalContentContainer">
+          </div>
+          <div class="l-section">
+            <button class="c-button" id="modalClose">CLOSE</button>
+          </div>
       </div>
-      <button id="modalClose">CLOSE</button>
     </div>
   `;
 
