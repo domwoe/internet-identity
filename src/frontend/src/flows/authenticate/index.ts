@@ -48,7 +48,7 @@ const pageContent = (
       </p>
     </div>
 
-    <div class="l-section c-input c-input--vip">
+    <div class="l-section c-input c-input--vip c-input--anchor">
       <input
         type="text"
         id="userNumberInput"
@@ -481,7 +481,6 @@ function setInputFilter(textbox: HTMLInputElement, inputFilter: (value: string) 
     ["input", "keydown", "keyup", "mousedown", "mouseup", "select", "contextmenu", "drop", "focusout"].forEach(function(event) {
         textbox.addEventListener(event, function(this: (HTMLInputElement | HTMLTextAreaElement) & {oldValue: string; oldSelectionStart: number | null, oldSelectionEnd: number | null}) {
             if (inputFilter(this.value)) {
-                console.log("beep");
                 this.oldValue = this.value;
                 this.oldSelectionStart = this.selectionStart;
                 this.oldSelectionEnd = this.selectionEnd;
@@ -490,7 +489,7 @@ function setInputFilter(textbox: HTMLInputElement, inputFilter: (value: string) 
 
                 if(parent && !parent.classList.contains("flash-error")) {
                     parent.classList.add("flash-error");
-                    setTimeout(() => parent.classList.remove("flash-error"), 1000);
+                    setTimeout(() => parent.classList.remove("flash-error"), 2000);
                     ;
                 }
 

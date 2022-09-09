@@ -1055,8 +1055,17 @@ a:hover,
   }
 }
 
-div.flash-error {
+.c-input--anchor.flash-error {
   animation-name: flash-error;
   animation-duration: 6s;
-  animation-fill-mode: forwards;
+}
+
+.c-input--anchor.flash-error::after {
+    content: 'Anchors only consist of digits';
+    position: absolute;
+    background: white;
+    border-radius: 20px;
+    top: 4rem;
+    left: 0px;
+    right: 0px;
 }
