@@ -298,6 +298,11 @@ export const displayPage = (
   const container = document.getElementById("pageContent") as HTMLElement;
   render(pageContent(origin, userNumber, derivationOrigin), container);
   initInfoBtn();
+
+  const userNumberInput = document.getElementById(
+    "userNumberInput"
+  ) as HTMLInputElement;
+  setInputFilter(userNumberInput, (c) => /^\d*\.?\d*$/.test(c), "chars only!");
 };
 
 function openModal(template: TemplateResult) {
@@ -471,3 +476,35 @@ const modalText: TemplateResult = html`
     </p>
   </div>
 `;
+
+function setInputFilter(textbox: HTMLInputElement, inputFilter: (value: string) => boolean, errMsg: string): void {
+    ["input", "keydown", "keyup", "mousedown", "mouseup", "select", "contextmenu", "drop", "focusout"].forEach(function(event) {
+        textbox.addEventListener(event, function(this: (HTMLInputElement | HTMLTextAreaElement) & {oldValue: string; oldSelectionStart: number | null, oldSelectionEnd: number | null}) {
+            if (inputFilter(this.value)) {
+                console.log("beep");
+                this.oldValue = this.value;
+                this.oldSelectionStart = this.selectionStart;
+                this.oldSelectionEnd = this.selectionEnd;
+            } else {
+                const parent = textbox.parentNode as HTMLElement;
+
+                if(parent && !parent.classList.contains("flash-error")) {
+                    parent.classList.add("flash-error");
+                    setTimeout(() => parent.classList.remove("flash-error"), 1000);
+                    ;
+                }
+
+
+                if (Object.prototype.hasOwnProperty.call(this, 'oldValue')) {
+                this.value = this.oldValue;
+                if (this.oldSelectionStart !== null &&
+                    this.oldSelectionEnd !== null) {
+                    this.setSelectionRange(this.oldSelectionStart, this.oldSelectionEnd);
+                }
+            } else {
+                this.value = "";
+            }
+            }
+        });
+    });
+}

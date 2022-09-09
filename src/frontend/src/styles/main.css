@@ -1035,3 +1035,28 @@ a:hover,
   text-decoration: none;
   cursor: pointer;
 }
+
+@keyframes flash-error {
+  0% {
+  background-image: linear-gradient(white, white),
+    linear-gradient(270deg, var(--rg-brand-bruised));
+  }
+  25% {
+  background-image: linear-gradient(white, white),
+    linear-gradient(270deg, var(--rg-brand));
+  }
+  75% {
+  background-image: linear-gradient(white, white),
+    linear-gradient(270deg, var(--rg-brand));
+  }
+  100% {
+  background-image: linear-gradient(white, white),
+    linear-gradient(270deg, var(--rg-brand-bruised));
+  }
+}
+
+div.flash-error {
+  animation-name: flash-error;
+  animation-duration: 6s;
+  animation-fill-mode: forwards;
+}
