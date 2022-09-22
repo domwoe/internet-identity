@@ -3,7 +3,7 @@ import { spawn } from "child_process";
 import { get } from "http";
 
 // @ts-ignore
-import * as log from "why-is-node-running";
+const log  = require("why-is-node-running");
 
 
 console.log("hello");
