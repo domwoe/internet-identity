@@ -65,7 +65,10 @@ shoot();
 async function screenshotMeThis(opts: { url: string }) {
     const browser = await remote({
         capabilities: {
-            browserName: 'chrome'
+            browserName: "chrome",
+            "goog:chromeOptions": {
+                args: ["headless", "disable-gpu"],
+            },
         }
     })
 
