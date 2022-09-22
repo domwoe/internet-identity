@@ -1,4 +1,6 @@
+use crate::PersistentState;
 use candid;
+use ic_cdk::api::stable::{CanisterStableMemory, StableMemoryError, StableReader, StableWriter};
 use ic_cdk::api::{
     stable::{stable64_grow, stable64_read, stable64_size, stable64_write},
     trap,
@@ -16,6 +18,8 @@ const GB: u64 = 1 << 30;
 const STABLE_MEMORY_SIZE: u64 = 8 * GB;
 /// We reserve last ~10% of the stable memory for later new features.
 const STABLE_MEMORY_RESERVE: u64 = STABLE_MEMORY_SIZE / 10;
+
+const PERSISTENT_STATE_MAGIC: [u8; 4] = *b"IIPS"; // II Persistent State
 
 /// The maximum number of users this canister can store.
 pub const DEFAULT_RANGE_SIZE: u64 =
@@ -217,6 +221,51 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         self.header.num_users as usize
     }
 
+    /// Returns the address of the first byte not yet allocated to a user.
+    /// This address exists even if the max user number has been reached, because there is a memory
+    /// reserve at the end of stable memory.
+    pub fn unused_memory_start(&self) -> u64 {
+        let record_number = self.header.num_users as u64;
+        HEADER_SIZE + record_number * self.header.entry_size as u64
+    }
+
+    fn write_persistent_state(&self, state: PersistentState) -> Result<(), StableMemoryError> {
+        let address = self.storage.borrow().unused_memory_start();
+
+        let mut writer = StableWriter::with_memory(CanisterStableMemory::default(), address);
+        let encoded_state = candid::encode_one(&state)?;
+        writer.write(&PERSISTENT_STATE_MAGIC)?;
+        writer.write(&encoded_state.len().to_le_bytes())?;
+        writer.write(&encoded_state)?;
+        Ok(())
+    }
+
+    fn read_persistent_state(&self) -> Result<PersistentState, {
+        let address = self.storage.borrow().unused_memory_start();
+        let mut reader = StableReader::with_memory(CanisterStableMemory::default(), address);
+
+        let mut magic_buf: [u8; 4] = [0; 4];
+        reader
+            .read(&mut magic_buf)
+            .expect("failed to read persistent state magic bytes");
+
+        if magic_buf != PERSISTENT_STATE_MAGIC {
+            todo!("not found")
+        }
+
+        let mut size_buf: [u8; 8] = [0; 8];
+        reader
+            .read(&mut size_buf)
+            .expect("failed to read persistent state size");
+        let size = u64::from_le_bytes(size_buf);
+        let mut data_buf = Vec::with_capacity(size as usize);
+        reader
+            .read(data_buf.try_into().unwrap())
+            .expect("failed to read persistent state");
+
+        candid::decode_one(&data_buf)
+    }
+
     /// Returns the maximum number of entries that this storage can fit.
     pub fn max_entries(&self) -> usize {
         ((STABLE_MEMORY_SIZE - HEADER_SIZE as u64 - STABLE_MEMORY_RESERVE)
@@ -265,6 +314,11 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         }
         Ok(record_number)
     }
+}
+
+pub enum PersistentStateReadError {
+    DeserializationError(candid::error::Error),
+
 }
 
 pub enum StorageError {

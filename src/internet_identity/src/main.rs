@@ -29,6 +29,7 @@ const fn secs_to_nanos(secs: u64) -> u64 {
 
 #[cfg(not(feature = "dummy_captcha"))]
 use captcha::filters::Wave;
+use ic_cdk::api::stable::stable64_write;
 
 // 30 mins
 const DEFAULT_EXPIRATION_PERIOD_NS: u64 = secs_to_nanos(30 * 60);
@@ -129,6 +130,9 @@ struct UsageMetrics {
     anchor_operation_counter: u64,
 }
 
+#[derive(Clone, Default, CandidType, Deserialize)]
+struct PersistentState {}
+
 struct State {
     storage: RefCell<Storage<Vec<DeviceDataInternal>>>,
     sigs: RefCell<SignatureMap>,
@@ -142,6 +146,9 @@ struct State {
     tentative_device_registrations: RefCell<HashMap<UserNumber, TentativeDeviceRegistration>>,
     // additional usage metrics, NOT persisted across updates (but probably should be in the future)
     usage_metrics: RefCell<UsageMetrics>,
+    // state that is persisted in stable memory during upgrades
+    // this must remain small as it is serialized and deserialized on on pre- and post-upgrade
+    persistent_state: RefCell<PersistentState>,
 }
 
 impl Default for State {
@@ -158,6 +165,7 @@ impl Default for State {
             inflight_challenges: RefCell::new(HashMap::new()),
             tentative_device_registrations: RefCell::new(HashMap::new()),
             usage_metrics: RefCell::new(UsageMetrics::default()),
+            persistent_state: RefCell::new(PersistentState::default()),
         }
     }
 }
@@ -990,6 +998,15 @@ fn retrieve_data() {
         // re-request them if needed.
         update_root_hash(&s.asset_hashes.borrow(), &s.sigs.borrow());
     });
+}
+
+fn save_persistent_state() {
+    STATE.with(|s| {
+        let address = s.storage.borrow().unused_memory_start();
+        let encoded_state = candid::encode_one(&s.persistent_state)?;
+        stable64_write(address, &encoded_state.len().to_le_bytes());
+        stable64_write(address + std::mem::size_of::<u64>(), &encoded_state);
+    })
 }
 
 fn calculate_seed(user_number: UserNumber, frontend: &FrontendHostname) -> Hash {
