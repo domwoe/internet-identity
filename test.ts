@@ -75,7 +75,7 @@ async function shoot() {
     }
 
 // @ts-ignore
-    log();
+    //log();
 }
 
 shoot();
@@ -88,7 +88,7 @@ async function screenshotMeThis(opts: { url: string }) {
             "goog:chromeOptions": {
                 args: ["headless", "disable-gpu"],
             },
-        }
+        },
     })
 
     await browser.url(opts.url)
@@ -101,7 +101,8 @@ async function screenshotMeThis(opts: { url: string }) {
         }
     );
 
-    await browser.saveScreenshot('./screenshots/my-new-screenshot.png')
-    await browser.deleteSession()
+    await browser.saveScreenshot('./screenshots/my-new-screenshot.png');
+    await browser.deleteSession();
+    await browser.pause(1);
 }
 
