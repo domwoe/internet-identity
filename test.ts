@@ -45,9 +45,15 @@ async function shoot() {
     const showcase = spawn("npm run showcase", { shell: true });
 
     showcase.on('close', (code, signal) => {
+        console.log(`showcase was closed (${code}, ${signal})`);
+    });
 
-        console.log(`showcase was killed (${code}, ${signal})`);
+    showcase.on('exit', (code, signal) => {
+        console.log(`showcase exited (${code}, ${signal})`);
+    });
 
+    showcase.on('error', (code, signal) => {
+        console.log(`showcase errored (${code}, ${signal})`);
     });
 
     try {
