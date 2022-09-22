@@ -344,26 +344,6 @@ export class Screenshots {
   private count = 0;
 
   constructor(private directory: string, private suffix: string) {}
-
-  async take(name: string, browser: WebdriverIO.Browser): Promise<void> {
-    await waitForImages(browser);
-    await waitForFonts(browser);
-
-    // wait another second for the scrollbar to fade on mobile
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Make sure that all screenshots are prefixed with "01-", "02-", ...
-    const countStr: string = this.count.toFixed().padStart(2, "0");
-    this.count++;
-
-    // Hide blinking cursor before taking screenshots (otherwise screenshot depends
-    // on the cursor state)
-    await browser.execute('document.body.style.caretColor = "transparent"');
-    await browser.saveScreenshot(
-      `${this.directory}/${countStr}-${name}-${this.suffix}.png`
-    );
-    await browser.execute('document.body.style.removeProperty("caret-color")');
-  }
 }
 
 // Inspired by https://stackoverflow.com/a/66919695/946226

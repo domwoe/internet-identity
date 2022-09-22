@@ -1,0 +1,509 @@
+# This describes all the tests we run on the canister code (various builds,
+# haskell tests, selenium tests). The canister code is built in docker and the
+# wasm is then reused by subsequent build steps. We build various flavors of
+# the code, see `docker-build-...` for more info.
+name: Canister tests
+
+on:
+  push:
+
+jobs:
+
+  #####################
+  # The docker builds #
+  #####################
+
+  # The image shared by all builds, containing pre-built rust deps
+  docker-build-base:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      # We use buildx and its GitHub Actions caching support `type=gha`. For
+      # more information, see
+      # https://github.com/docker/build-push-action/issues/539
+      - name: Set up docker buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build base Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          cache-from: type=gha,scope=cached-stage
+          cache-to: type=gha,scope=cached-stage,mode=max
+          outputs: type=cacheonly
+          target: deps
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: docker-build-base
+    strategy:
+      # NOTE: the 'name' in the matrix should match the asset filename, because it is used in
+      # .github/actions/release to figure out the job ID.
+      #
+      # NOTE: if you modify the flavors, update the #flavors table in README.md
+      matrix:
+        include:
+          # The production build
+          - name: internet_identity_production.wasm
+            II_FETCH_ROOT_KEY: 0
+            II_DUMMY_CAPTCHA: 0
+            II_DUMMY_AUTH: 0
+
+          # No captcha and fetching the root key, used in (our) tests, backend and
+          # selenium.
+          - name: internet_identity_test.wasm
+            II_FETCH_ROOT_KEY: 1
+            II_DUMMY_CAPTCHA: 1
+            II_DUMMY_AUTH: 0
+
+          # Everything disabled, used by third party developers who only care
+          # about the login flow
+          - name: internet_identity_dev.wasm
+            II_FETCH_ROOT_KEY: 1
+            II_DUMMY_CAPTCHA: 1
+            II_DUMMY_AUTH: 1
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up docker buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build ${{ matrix.name }}
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          build-args: |
+            II_FETCH_ROOT_KEY=${{ matrix.II_FETCH_ROOT_KEY }}
+            II_DUMMY_AUTH=${{ matrix.II_DUMMY_AUTH }}
+            II_DUMMY_CAPTCHA=${{ matrix.II_DUMMY_CAPTCHA }}
+          cache-from: type=gha,scope=cached-stage
+          # Exports the artefacts from the final stage
+          outputs: ./out
+
+      - run: sha256sum out/internet_identity.wasm
+      - run: mv out/internet_identity.wasm ${{ matrix.name }}
+      - name: 'Upload ${{ matrix.name }}'
+        uses: actions/upload-artifact@v2
+        with:
+          # name is the name used to display and retrieve the artifact
+          name: ${{ matrix.name }}
+          # path is the name used as the file to upload and the name of the
+          # downloaded file
+          path: ${{ matrix.name }}
+
+  wasm-size:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Download wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: internet_identity_production.wasm
+          path: .
+      - id: record-size
+        uses: ./.github/actions/file-size
+        with:
+          file: internet_identity_production.wasm
+          save: ${{ github.ref == 'refs/heads/main' }}
+      - name: "Check canister size"
+        run: |
+          max_size=3670016 # maximum canister size, in bytes
+          actual_size=${{ steps.record-size.outputs.size }}
+          if (( actual_size > max_size ))
+          then
+            echo "Canister size too big"
+            echo "($actual_size > $max_size)"
+            exit 1
+          fi
+
+  test-app-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            demos/test-app/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('demos/test-app/Cargo.lock', 'rust-toolchain.toml') }}
+      - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/setup-node
+      - name: "Build test app canister"
+        working-directory: demos/test-app
+        run: ./build.sh
+      - name: 'Upload test app'
+        uses: actions/upload-artifact@v2
+        with:
+          # name is the name used to display and retrieve the artifact
+          name: test_app.wasm
+          # path is the name used as the file to upload and the name of the
+          # downloaded file
+          path: ./demos/test-app/test_app.wasm
+
+  ###########################
+  # The Rust canister tests #
+  ###########################
+
+  # Run the tests, user the output of the docker build as Wasm module
+  # (note: this runs _all_ cargo tests)
+  canister-tests:
+    runs-on: ${{ matrix.os }}
+    needs: docker-build
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # Pull a deep copy so that we can set meaningful timestamps across builds, based on the commit history
+          fetch-depth: '0'
+
+      - uses: ./.github/actions/bootstrap
+
+      # Rustup only installs cargo on the first call, so we use a dedicated step to get a good idea of how
+      # time is spent in each step separately
+      - run: cargo check --help
+
+        # NOTE: the top-level crate "canister_tests" still gets recompiled (~4mn)
+        # due to the mtime changing on the checkout. Can be worked around by storing
+        # the original mtime in the cache and by hashing all of src/canister_tests
+        # (and then restoring the mtime).
+      - uses: actions/cache@v2
+        with:
+          # note on paths: we include the whole ~/.cargo/. (as opposed to just .cargo/git, etc.) because cargo stores crate
+          # data as .crates(2?).{json,toml} without which the whole cache is invalidated. We may accumulate unnecessary
+          # stuff but the cache is anyway invalidated on every toolchain update.
+          # We also include all Cargo tomls and the lockfile
+          path: |
+            ~/.cargo
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-3
+
+      - name: 'Download wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: internet_identity_test.wasm
+          path: .
+
+        # For each file involved in the build, set the mtime back to the commit date of the last edit. This means we get
+        # meaningful mtimes that cargo can work use to decide what part of the target/ cache to invalidate as opposed
+        # to just thrashing everything. This means that the build is a no-op for anything that doesn't change the actual test code.
+      - name: 'Set timestamps'
+        run: |
+          git ls-tree -r --name-only HEAD ./src/ Cargo.* | \
+            while read filename
+            do
+              git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
+              echo "Setting $filename to $git_time"
+              TZ=UTC0 touch -t "$git_time" "$filename"
+            done
+
+      - name: Create dummy assets
+        run: |
+          mkdir dist
+          touch dist/index.html
+          touch dist/index.js.gz
+          touch dist/index.css
+          touch dist/loader.webp
+          touch dist/favicon.ico
+          touch dist/ic-badge.svg
+
+      # We split the test build and run so that it's clear from the GHA steps how long each took
+      - name: Build Tests
+        shell: bash
+        run: cargo build --tests --release
+
+      - name: Run Tests
+        shell: bash
+        run: |
+          mv internet_identity_test.wasm internet_identity.wasm
+          # NOTE: Here we download a changing asset (i.e. the latest release) meaning that in some rare cases (after a new release)
+          # PRs that used to be green may become red (if the new release broke something). While this is not CI best practice, it's
+          # a relatively small price to pay to make sure PRs are always tested against the latest release.
+          curl -sSL https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_test.wasm -o internet_identity_previous.wasm
+          cargo test --release
+        env:
+          RUST_BACKTRACE: 1
+
+  ######################
+  # The selenium tests #
+  ######################
+
+  selenium:
+    runs-on: ubuntu-latest
+    needs: [docker-build, test-app-build]
+    strategy:
+      matrix:
+        device: [ 'desktop', 'mobile' ]
+      # Make sure that one failing test does not cancel all other matrix jobs
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/setup-node
+
+      - uses: ./.github/actions/setup-dfx
+
+      # Helps with debugging
+      - name: Show versions
+        run: |
+          echo dfx --version
+          dfx --version
+          echo node --version
+          node --version
+          echo docker --version
+          docker --version
+
+      - name: 'Run dfx'
+        run: dfx start --background
+
+      - name: 'Download II wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: internet_identity_test.wasm
+          path: .
+
+      - name: 'Download test app wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: test_app.wasm
+          path: demos/test-app
+
+      - name: Deploy Internet Identity
+        run: |
+          dfx canister create --all
+          dfx canister install internet_identity --wasm internet_identity_test.wasm
+
+      - name: Deploy test app
+        working-directory: demos/test-app
+        run: |
+          dfx canister create --all
+          dfx canister install test_app --wasm test_app.wasm
+
+      - name: Start docker compose
+        run: scripts/start-selenium-env --no-hot-reload
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:e2e-${{ matrix.device }}
+      - name: Collect docker logs
+        working-directory: docker-test-env
+        if: ${{ always() }}
+        run: docker compose logs > ../docker-compose.log
+
+      - name: Stop dfx
+        run: dfx stop
+
+      - name: Shut down docker services
+        working-directory: docker-test-env
+        run: docker compose down
+
+      - name: Archive test logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: e2e-test-log-${{ matrix.device }}
+          path: ./*.log
+
+      - name: Archive test failures
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: e2e-test-failures-${{ matrix.device }}
+          path: test-failures/*
+          if-no-files-found: ignore
+
+  using-dev-build:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v2
+
+      - run: |
+          sudo apt-get update
+          sudo apt-get --only-upgrade install google-chrome-stable
+          google-chrome --version
+
+      - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-dfx
+
+      # Helps with debugging
+      - name: Show versions
+        run: |
+          echo dfx --version
+          dfx --version
+
+      - name: Start replica
+        run: |
+          dfx start --background
+
+      - name: 'Download wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: internet_identity_dev.wasm
+          path: .
+
+      - name: Deploy II and run tests
+        run: |
+          set -euo pipefail
+
+          # Copy example to make sure it does not rely on living inside the II repo
+          builddir=$(mktemp -d)
+          cp -r ./demos/using-dev-build/. "$builddir"
+          pushd "$builddir"
+
+          # Install npm deps
+          npm ci
+
+          # Create a fake curl so that we use this build's wasm and did files; also create "witness"
+          # files to make sure the fake curl was run (rm $witness_foo will fail otherwise)
+          witnesses=$(mktemp -d); witness_wasm="$witnesses/wasm"; witness_did="$witnesses/did"
+          curl_dir=$(mktemp -d)
+
+          cat > "$curl_dir/curl" << EOF
+          #!/usr/bin/env bash
+          case "\$*" in
+            *"internet_identity.wasm"*)
+              cp "$GITHUB_WORKSPACE"/internet_identity_dev.wasm ./internet_identity.wasm && touch $witness_wasm
+              ;;
+            *"internet_identity.did"*)
+              cp "$GITHUB_WORKSPACE"/src/internet_identity/internet_identity.did ./internet_identity.did && touch $witness_did
+              ;;
+            *)
+              echo "unexpected arguments: \$*"
+              exit 1
+              ;;
+          esac
+          EOF
+
+          chmod +x $curl_dir/curl
+          PATH=$curl_dir:$PATH dfx deploy --no-wallet --argument '(null)'
+          rm -rf "$curl_dir"; rm "$witness_wasm"; rm "$witness_did"; rmdir "$witnesses"
+
+          npm run test
+
+          # Clean up temp files
+          rm internet_identity.wasm; rm internet_identity.did
+          popd
+          rm -rf "$builddir"
+
+      - name: Stop replica
+        run: |
+          dfx stop
+
+  # This deploys the production build to mainnet, to a canister that we use for release testing.
+  deploy:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/release-')
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: 'Install dfx'
+        run: DFX_VERSION=0.10.1 sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
+
+      - name: 'Download wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: internet_identity_production.wasm
+          path: .
+
+      - name: 'Install key'
+        env:
+          DFX_DEPLOY_KEY: ${{ secrets.DFX_DEPLOY_KEY }}
+        run: |
+          key_pem=$(mktemp)
+          printenv "DFX_DEPLOY_KEY" > "$key_pem"
+          dfx identity import --disable-encryption --force default "$key_pem"
+          rm "$key_pem"
+
+      - name: "Deploy"
+        run: |
+          mv internet_identity_production.wasm internet_identity.wasm
+          wallet="cvthj-wyaaa-aaaad-aaaaq-cai"
+          dfx canister --network ic --wallet "$wallet" install --mode upgrade \
+            --argument '(null)' \
+            internet_identity
+
+
+  # This ... releases
+  release:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/release-')
+    needs: docker-build
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: 'Download wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: internet_identity_test.wasm
+          path: .
+
+      - name: 'Download wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: internet_identity_dev.wasm
+          path: .
+
+      - name: 'Download wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: internet_identity_production.wasm
+          path: .
+
+      - name: Prepare release
+        uses: ./.github/actions/release
+        id: prepare-release
+        with:
+          assets: |
+            internet_identity_production.wasm
+            internet_identity_dev.wasm
+            internet_identity_test.wasm
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish release
+        run: |
+          ./scripts/release \
+            --tag ${{ github.ref }} \
+            --notes-file ${{ steps.prepare-release.outputs.notes-file }} \
+            -- \
+            internet_identity_production.wasm \
+            internet_identity_dev.wasm \
+            internet_identity_test.wasm \
+            src/internet_identity/internet_identity.did
+        env:
+          # populated by GitHub Actions
+          # https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  clean-build:
+    runs-on: ${{ matrix.os }}
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: docker-build
+    strategy:
+      matrix:
+        os: [ ubuntu-22.04, ubuntu-20.04, ubuntu-18.04, macos-11, macos-12 ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Download wasm'
+        uses: actions/download-artifact@v2
+        with:
+          name: internet_identity_production.wasm
+          path: .
+      - run: |
+          sha256=$(shasum -a 256 ./internet_identity_production.wasm | cut -d ' ' -f1)
+          echo "::set-output name=sha256::$sha256"
+        id: sha256
+
+      - uses: ./.github/actions/check-build
+        with:
+          # we check that ubuntu builds match the docker build
+          sha256: ${{ startsWith(matrix.os, 'ubuntu') && steps.sha256.outputs.sha256 || '' }}
