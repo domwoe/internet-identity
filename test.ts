@@ -64,7 +64,13 @@ async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
         continue;
       }
 
-      await visit(browser, `http://localhost:8080/${pageName}`);
+      // In the case of the faq we modify the URL slightly to show an open entry
+      if (pageName === "faq") {
+        await visit(browser, `http://localhost:8080/${pageName}#lost-device`);
+      } else {
+        await visit(browser, `http://localhost:8080/${pageName}`);
+      }
+
       await browser.saveScreenshot(`./screenshots/${pageName}.png`);
     }
   });
