@@ -33,9 +33,9 @@ async function withChrome<T>(
   return res;
 }
 
-
-/** Wait until the page has fully loaded */
-async function waitPageLoaded(browser: WebdriverIO.Browser) {
+/** Visit page and wait until loaded */
+async function visit(browser: WebdriverIO.Browser, url: string) {
+  await browser.url(url);
   await browser.waitUntil(
     () => browser.execute(() => document.readyState === "complete"),
     {
@@ -46,9 +46,7 @@ async function waitPageLoaded(browser: WebdriverIO.Browser) {
 }
 
 async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
-  await browser.url("http://localhost:8080/");
-
-  await waitPageLoaded(browser);
+  await visit(browser, "http://localhost:8080/");
 
   const pageLinks = await browser.$$("[data-page-name]");
   const pageNames = await Promise.all(
@@ -61,27 +59,19 @@ async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
   // Ensure bliking cursors don't mess up screenshots
   await hideCursor(browser, async () => {
     for (const pageName of pageNames) {
+      // Skip the loader, because it's animated
       if (pageName === "loader") {
         continue;
       }
 
-      await browser.url(`http://localhost:8080/${pageName}`);
-
-      browser.waitUntil(
-        () => browser.execute(() => document.readyState === "complete"),
-        {
-          timeout: 10 * 1000,
-          timeoutMsg: "Browser did not load after 10 seconds",
-        }
-      );
-
+      await visit(browser, `http://localhost:8080/${pageName}`);
       await browser.saveScreenshot(`./screenshots/${pageName}.png`);
     }
   });
 }
 
 async function main() {
-    await withChrome(takeShowcaseScreenshots);
+  await withChrome(takeShowcaseScreenshots);
 }
 
 main();
