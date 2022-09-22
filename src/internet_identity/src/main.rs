@@ -1002,10 +1002,9 @@ fn retrieve_data() {
 
 fn save_persistent_state() {
     STATE.with(|s| {
-        let address = s.storage.borrow().unused_memory_start();
-        let encoded_state = candid::encode_one(&s.persistent_state)?;
-        stable64_write(address, &encoded_state.len().to_le_bytes());
-        stable64_write(address + std::mem::size_of::<u64>(), &encoded_state);
+        s.storage
+            .borrow()
+            .write_persistent_state(&s.persistent_state.borrow());
     })
 }
 

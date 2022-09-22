@@ -280,13 +280,13 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
 
     pub fn write_persistent_state(
         &self,
-        state: PersistentState,
+        state: &PersistentState,
     ) -> Result<(), PersistentStateError> {
         let address = self.storage.borrow().unused_memory_start();
 
         let mut writer = StableWriter::with_memory(CanisterStableMemory::default(), address);
         let encoded_state =
-            candid::encode_one(&state).map_err(|err| PersistentStateError::CandidError(err))?;
+            candid::encode_one(state).map_err(|err| PersistentStateError::CandidError(err))?;
 
         // this block is an additional sanity check to make sure that the calculated address is in the expected range
         // to make sure we do not override user data
