@@ -1,3 +1,27 @@
+
+import { remote } from "webdriverio"
+
+;(async () => {
+    const browser = await remote({
+        capabilities: {
+            browserName: "chrome",
+            "goog:chromeOptions": {
+                args: ["headless", "disable-gpu"],
+            },
+        }
+    })
+
+    await browser.url('https://webdriver.io')
+
+    const apiLink = await browser.$('=API')
+    await apiLink.click()
+
+    await browser.saveScreenshot('./screenshots/hello.png')
+    await browser.deleteSession()
+})()
+
+
+/*
 import { remote } from "webdriverio";
 import { spawn } from "child_process";
 import { get } from "http";
@@ -106,3 +130,4 @@ async function screenshotMeThis(opts: { url: string }) {
     await browser.pause(1);
 }
 
+*/
