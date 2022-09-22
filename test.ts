@@ -75,7 +75,7 @@ async function shoot() {
     }
 
 // @ts-ignore
-    //log();
+    log();
 }
 
 shoot();
