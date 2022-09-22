@@ -2,6 +2,9 @@ import { remote } from "webdriverio";
 import { spawn } from "child_process";
 import { get } from "http";
 
+// @ts-ignore
+import * as log from "why-is-node-running";
+
 
 console.log("hello");
 
@@ -70,9 +73,13 @@ async function shoot() {
         console.log(showcase.kill());
         console.log("ok now what");
     }
+
+// @ts-ignore
+    log();
 }
 
 shoot();
+
 
 async function screenshotMeThis(opts: { url: string }) {
     const browser = await remote({
@@ -97,3 +104,4 @@ async function screenshotMeThis(opts: { url: string }) {
     await browser.saveScreenshot('./screenshots/my-new-screenshot.png')
     await browser.deleteSession()
 }
+
