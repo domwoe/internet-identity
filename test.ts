@@ -52,8 +52,8 @@ async function shoot() {
         console.log(`showcase exited (${code}, ${signal})`);
     });
 
-    showcase.on('error', (code, signal) => {
-        console.log(`showcase errored (${code}, ${signal})`);
+    showcase.on('error', (e) => {
+        console.log(`showcase errored (${e})`);
     });
 
     try {
