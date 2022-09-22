@@ -221,51 +221,6 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         self.header.num_users as usize
     }
 
-    /// Returns the address of the first byte not yet allocated to a user.
-    /// This address exists even if the max user number has been reached, because there is a memory
-    /// reserve at the end of stable memory.
-    pub fn unused_memory_start(&self) -> u64 {
-        let record_number = self.header.num_users as u64;
-        HEADER_SIZE + record_number * self.header.entry_size as u64
-    }
-
-    fn write_persistent_state(&self, state: PersistentState) -> Result<(), StableMemoryError> {
-        let address = self.storage.borrow().unused_memory_start();
-
-        let mut writer = StableWriter::with_memory(CanisterStableMemory::default(), address);
-        let encoded_state = candid::encode_one(&state)?;
-        writer.write(&PERSISTENT_STATE_MAGIC)?;
-        writer.write(&encoded_state.len().to_le_bytes())?;
-        writer.write(&encoded_state)?;
-        Ok(())
-    }
-
-    fn read_persistent_state(&self) -> Result<PersistentState, {
-        let address = self.storage.borrow().unused_memory_start();
-        let mut reader = StableReader::with_memory(CanisterStableMemory::default(), address);
-
-        let mut magic_buf: [u8; 4] = [0; 4];
-        reader
-            .read(&mut magic_buf)
-            .expect("failed to read persistent state magic bytes");
-
-        if magic_buf != PERSISTENT_STATE_MAGIC {
-            todo!("not found")
-        }
-
-        let mut size_buf: [u8; 8] = [0; 8];
-        reader
-            .read(&mut size_buf)
-            .expect("failed to read persistent state size");
-        let size = u64::from_le_bytes(size_buf);
-        let mut data_buf = Vec::with_capacity(size as usize);
-        reader
-            .read(data_buf.try_into().unwrap())
-            .expect("failed to read persistent state");
-
-        candid::decode_one(&data_buf)
-    }
-
     /// Returns the maximum number of entries that this storage can fit.
     pub fn max_entries(&self) -> usize {
         ((STABLE_MEMORY_SIZE - HEADER_SIZE as u64 - STABLE_MEMORY_RESERVE)
@@ -314,11 +269,71 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         }
         Ok(record_number)
     }
+
+    /// Returns the address of the first byte not yet allocated to a user.
+    /// This address exists even if the max user number has been reached, because there is a memory
+    /// reserve at the end of stable memory.
+    fn unused_memory_start(&self) -> u64 {
+        let record_number = self.header.num_users as u64;
+        HEADER_SIZE + record_number * self.header.entry_size as u64
+    }
+
+    pub fn write_persistent_state(
+        &self,
+        state: PersistentState,
+    ) -> Result<(), PersistentStateError> {
+        let address = self.storage.borrow().unused_memory_start();
+
+        let mut writer = StableWriter::with_memory(CanisterStableMemory::default(), address);
+        let encoded_state =
+            candid::encode_one(&state).map_err(|err| PersistentStateError::CandidError(err))?;
+
+        let num_wasm_pages_affected = 2 + encoded_state.len() / WASM_PAGE_SIZE;
+
+        writer
+            .write(&PERSISTENT_STATE_MAGIC)
+            .map_err(|err| PersistentStateError::StableMemoryError(err))?;
+        writer
+            .write(&encoded_state.len().to_le_bytes())
+            .map_err(|err| PersistentStateError::StableMemoryError(err))?;
+        writer
+            .write(&encoded_state)
+            .map_err(|err| PersistentStateError::StableMemoryError(err))?;
+        Ok(())
+    }
+
+    pub fn read_persistent_state(&self) -> Result<PersistentState, PersistentStateError> {
+        let address = self.storage.borrow().unused_memory_start();
+        let mut reader = StableReader::with_memory(CanisterStableMemory::default(), address);
+
+        let mut magic_buf: [u8; 4] = [0; 4];
+        reader
+            .read(&mut magic_buf)
+            .map_err(|err| PersistentStateError::StableMemoryError(err))?;
+
+        if magic_buf != PERSISTENT_STATE_MAGIC {
+            return Err(PersistentStateError::NotFound);
+        }
+
+        let mut size_buf: [u8; 8] = [0; 8];
+        reader
+            .read(&mut size_buf)
+            .map_err(|err| PersistentStateError::StableMemoryError(err))?;
+
+        let size = u64::from_le_bytes(size_buf);
+        let mut data_buf = Vec::with_capacity(size as usize);
+        reader
+            .read(data_buf.try_into().unwrap())
+            .map_err(|err| PersistentStateError::StableMemoryError(err))?;
+
+        candid::decode_one(&data_buf).map_err(|err| PersistentStateError::CandidError(err))
+    }
 }
 
-pub enum PersistentStateReadError {
-    DeserializationError(candid::error::Error),
-
+pub enum PersistentStateError {
+    CandidError(candid::error::Error),
+    NotFound,
+    StableMemoryError(StableMemoryError),
 }
 
 pub enum StorageError {
