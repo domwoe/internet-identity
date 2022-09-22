@@ -82,7 +82,7 @@ async function shoot() {
 // @ts-ignore
     //log();
 
-    const showcase = spawn("npm run showcase", { shell: true });
+    const showcase = spawn("npm", ["run", "showcase"]);
 
     console.log(showcase.kill());
 }
