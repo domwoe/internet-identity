@@ -1,12 +1,15 @@
+use crate::archive::ArchiveState;
 use crate::assets::init_assets;
+use crate::storage::PersistentStateError;
 use crate::AddTentativeDeviceResponse::{AddedTentatively, AnotherDeviceTentativelyAdded};
+use crate::DeployArchiveResult::{CreationFailed, UpgradeFailed};
 use crate::RegistrationState::{DeviceRegistrationModeActive, DeviceTentativelyAdded};
 use crate::VerifyTentativeDeviceResponse::{NoDeviceToVerify, WrongCode};
 use assets::ContentType;
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::call::call;
 use ic_cdk::api::{caller, data_certificate, id, set_certified_data, time, trap};
-use ic_cdk_macros::{init, post_upgrade, query, update};
+use ic_cdk_macros::{init, post_upgrade, pre_upgrade, query, update};
 use ic_certified_map::{AsHashTree, Hash, HashTree, RbTree};
 use internet_identity::signature_map::SignatureMap;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
@@ -20,13 +23,13 @@ use storage::{Salt, Storage};
 
 use internet_identity_interface::*;
 
+mod archive;
 mod assets;
 mod http;
 
 const fn secs_to_nanos(secs: u64) -> u64 {
     secs * 1_000_000_000
 }
-
 #[cfg(not(feature = "dummy_captcha"))]
 use captcha::filters::Wave;
 
@@ -95,6 +98,36 @@ impl From<DeviceDataInternal> for DeviceData {
     }
 }
 
+fn device_diff(old: &DeviceDataInternal, new: &DeviceDataInternal) -> DeviceDataUpdate {
+    DeviceDataUpdate {
+        alias: if old.alias == new.alias {
+            None
+        } else {
+            Some(Private::HiddenForPrivacyReasons)
+        },
+        credential_id: if old.credential_id == new.credential_id {
+            None
+        } else {
+            new.credential_id.clone()
+        },
+        purpose: if old.purpose == new.purpose {
+            None
+        } else {
+            new.purpose.clone()
+        },
+        key_type: if old.key_type == new.key_type {
+            None
+        } else {
+            new.key_type.clone()
+        },
+        protection: if old.protection == new.protection {
+            None
+        } else {
+            new.protection.clone()
+        },
+    }
+}
+
 mod hash;
 mod storage;
 
@@ -102,6 +135,7 @@ mod storage;
 struct InternetIdentityStats {
     assigned_user_number_range: (UserNumber, UserNumber),
     users_registered: u64,
+    archive: Option<Principal>,
 }
 
 type AssetHashes = RbTree<&'static str, Hash>;
@@ -129,6 +163,12 @@ struct UsageMetrics {
     anchor_operation_counter: u64,
 }
 
+#[derive(Clone, Default, CandidType, Deserialize)]
+pub struct PersistentState {
+    // Information related to the archive
+    archive_info: ArchiveState,
+}
+
 struct State {
     storage: RefCell<Storage<Vec<DeviceDataInternal>>>,
     sigs: RefCell<SignatureMap>,
@@ -142,6 +182,9 @@ struct State {
     tentative_device_registrations: RefCell<HashMap<UserNumber, TentativeDeviceRegistration>>,
     // additional usage metrics, NOT persisted across updates (but probably should be in the future)
     usage_metrics: RefCell<UsageMetrics>,
+    // state that is persisted in stable memory during upgrades
+    // this must remain small as it is serialized and deserialized on on pre- and post-upgrade
+    persistent_state: RefCell<PersistentState>,
 }
 
 impl Default for State {
@@ -158,6 +201,7 @@ impl Default for State {
             inflight_challenges: RefCell::new(HashMap::new()),
             tentative_device_registrations: RefCell::new(HashMap::new()),
             usage_metrics: RefCell::new(UsageMetrics::default()),
+            persistent_state: RefCell::new(PersistentState::default()),
         }
     }
 }
@@ -418,17 +462,18 @@ async fn register(device_data: DeviceData, challenge_result: ChallengeAttempt) -
 
     check_device(&device_data, &vec![]);
 
-    if caller() != Principal::self_authenticating(device_data.pubkey.clone()) {
-        ic_cdk::trap(&format!(
+    // save caller here because it will not be available after await (which might happen in ensure_salt_set)
+    let caller = caller();
+    if caller != Principal::self_authenticating(device_data.pubkey.clone()) {
+        trap(&format!(
             "{} could not be authenticated against {:?}",
-            caller(),
-            device_data.pubkey
+            caller, device_data.pubkey
         ));
     }
 
     ensure_salt_set().await;
 
-    STATE.with(|s| {
+    let response = STATE.with(|s| {
         prune_expired_signatures(&s.asset_hashes.borrow(), &mut s.sigs.borrow_mut());
 
         let mut store = s.storage.borrow_mut();
@@ -437,12 +482,43 @@ async fn register(device_data: DeviceData, challenge_result: ChallengeAttempt) -
                 write_anchor_data(
                     store.deref(),
                     user_number,
-                    vec![DeviceDataInternal::from(device_data)],
+                    vec![DeviceDataInternal::from(device_data.clone())],
                     s.usage_metrics.borrow_mut(),
                 );
                 RegisterResponse::Registered { user_number }
             }
             None => RegisterResponse::CanisterFull,
+        }
+    });
+
+    if let RegisterResponse::Registered { user_number } = response {
+        if let Some((archive, sequence_number)) = archive_and_next_seq_nr() {
+            archive::write_entry(
+                archive,
+                Entry {
+                    anchor: user_number,
+                    operation: OperationType::RegisterAnchor {
+                        device: DeviceDataWithoutAlias::from(device_data),
+                    },
+                    timestamp: time(),
+                    caller,
+                    sequence_number,
+                },
+            )
+        }
+    }
+    response
+}
+
+fn archive_and_next_seq_nr() -> Option<(Principal, u64)> {
+    STATE.with(|s| {
+        let mut persistent_state = s.persistent_state.borrow_mut();
+        if let ArchiveState::Created(ref mut data) = &mut persistent_state.archive_info {
+            let result = Some((data.archive_canister, data.sequence_number));
+            data.sequence_number += 1;
+            result
+        } else {
+            None
         }
     })
 }
@@ -479,7 +555,7 @@ async fn add(user_number: UserNumber, device_data: DeviceData) {
             ));
         }
 
-        entries.push(DeviceDataInternal::from(device_data));
+        entries.push(DeviceDataInternal::from(device_data.clone()));
         write_anchor_data(
             s.storage.borrow().deref(),
             user_number,
@@ -487,7 +563,22 @@ async fn add(user_number: UserNumber, device_data: DeviceData) {
             s.usage_metrics.borrow_mut(),
         );
         prune_expired_signatures(&s.asset_hashes.borrow(), &mut s.sigs.borrow_mut());
-    })
+    });
+
+    if let Some((archive, sequence_number)) = archive_and_next_seq_nr() {
+        archive::write_entry(
+            archive,
+            Entry {
+                anchor: user_number,
+                operation: OperationType::AddDevice {
+                    device: DeviceDataWithoutAlias::from(device_data),
+                },
+                timestamp: time(),
+                caller: caller(),
+                sequence_number,
+            },
+        )
+    }
 }
 
 /// Replace or remove an existing device.
@@ -495,9 +586,9 @@ async fn add(user_number: UserNumber, device_data: DeviceData) {
 /// NOTE: all mutable operations should call this function because it handles device protection
 fn mutate_device_or_trap(
     entries: &mut Vec<DeviceDataInternal>,
-    device_key: DeviceKey,
+    device_key: &DeviceKey,
     new_value: Option<DeviceData>,
-) {
+) -> Option<DeviceDataUpdate> {
     let index = match entries.iter().position(|e| e.pubkey == device_key) {
         None => trap("Could not find device to mutate, check device key"),
         Some(index) => index,
@@ -519,12 +610,16 @@ fn mutate_device_or_trap(
 
     match new_value {
         Some(device_data) => {
-            *device = device_data.into();
+            let internal_device = device_data.into();
+            let diff = device_diff(device, &internal_device);
+            *device = internal_device;
+            Some(diff)
         }
         None => {
             // NOTE: we void the more efficient remove_swap to ensure device ordering
             // is not changed
             entries.remove(index);
+            None
         }
     }
 }
@@ -535,7 +630,7 @@ async fn update(user_number: UserNumber, device_key: DeviceKey, device_data: Dev
         trap("device key may not be updated");
     }
 
-    STATE.with(|s| {
+    let diff = STATE.with(|s| {
         let mut entries = s.storage.borrow().read(user_number).unwrap_or_else(|err| {
             trap(&format!(
                 "failed to read device data of user {}: {}",
@@ -546,7 +641,7 @@ async fn update(user_number: UserNumber, device_key: DeviceKey, device_data: Dev
         trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
         check_device(&device_data, &entries);
 
-        mutate_device_or_trap(&mut entries, device_key, Some(device_data));
+        let diff = mutate_device_or_trap(&mut entries, &device_key, Some(device_data));
 
         write_anchor_data(
             s.storage.borrow().deref(),
@@ -556,7 +651,24 @@ async fn update(user_number: UserNumber, device_key: DeviceKey, device_data: Dev
         );
 
         prune_expired_signatures(&s.asset_hashes.borrow(), &mut s.sigs.borrow_mut());
-    })
+        diff
+    });
+
+    if let Some((archive, sequence_number)) = archive_and_next_seq_nr() {
+        archive::write_entry(
+            archive,
+            Entry {
+                anchor: user_number,
+                operation: OperationType::UpdateDevice {
+                    device: device_key,
+                    new_values: diff.unwrap(),
+                },
+                timestamp: time(),
+                caller: caller(),
+                sequence_number,
+            },
+        )
+    }
 }
 
 #[update]
@@ -574,14 +686,27 @@ async fn remove(user_number: UserNumber, device_key: DeviceKey) {
 
         trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
 
-        mutate_device_or_trap(&mut entries, device_key, None);
+        mutate_device_or_trap(&mut entries, &device_key, None);
         write_anchor_data(
             s.storage.borrow().deref(),
             user_number,
             entries,
             s.usage_metrics.borrow_mut(),
         );
-    })
+    });
+
+    if let Some((archive, sequence_number)) = archive_and_next_seq_nr() {
+        archive::write_entry(
+            archive,
+            Entry {
+                anchor: user_number,
+                operation: OperationType::RemoveDevice { device: device_key },
+                timestamp: time(),
+                caller: caller(),
+                sequence_number,
+            },
+        )
+    }
 }
 
 /// Writes the supplied entries to stable memory and updates the anchor operation metric.
@@ -935,11 +1060,66 @@ fn http_request(req: HttpRequest) -> HttpResponse {
 fn stats() -> InternetIdentityStats {
     STATE.with(|state| {
         let storage = state.storage.borrow();
+        let archive =
+            if let ArchiveState::Created(data) = &state.persistent_state.borrow().archive_info {
+                Some(data.archive_canister)
+            } else {
+                None
+            };
         InternetIdentityStats {
             assigned_user_number_range: storage.assigned_user_number_range(),
             users_registered: storage.user_count() as u64,
+            archive,
         }
     })
+}
+
+#[update]
+async fn deploy_archive(wasm: ByteBuf) -> DeployArchiveResult {
+    let archive_state = STATE.with(|s| {
+        let archive_state = s.persistent_state.borrow().archive_info.clone();
+        if archive_state == ArchiveState::NotCreated {
+            // lock archive creation because of async operation
+            s.persistent_state.borrow_mut().archive_info = ArchiveState::CreationInProgress;
+        }
+        archive_state
+    });
+
+    match archive_state {
+        ArchiveState::NotCreated => create_and_install_archive(wasm.into_vec()).await,
+        ArchiveState::CreationInProgress => DeployArchiveResult::CreationInProgress,
+        ArchiveState::Created(data) => {
+            match archive::install_archive(data.archive_canister, wasm.into_vec()).await {
+                Ok(_) => DeployArchiveResult::Success,
+                Err(err) => UpgradeFailed(err),
+            }
+        }
+    }
+}
+
+async fn create_and_install_archive(wasm: Vec<u8>) -> DeployArchiveResult {
+    let result = archive::create_archive().await;
+
+    match result {
+        Err(e) => {
+            STATE.with(|s| {
+                // unlock archive creation again
+                s.persistent_state.borrow_mut().archive_info = ArchiveState::NotCreated
+            });
+            return CreationFailed(format!("failed to create archive: {:?}", e));
+        }
+        Ok(data) => {
+            let archive_canister_id = data.archive_canister;
+            STATE.with(|s| {
+                // safe archive info permanently
+                s.persistent_state.borrow_mut().archive_info = ArchiveState::Created(data)
+            });
+            match archive::install_archive(archive_canister_id, wasm).await {
+                Ok(_) => DeployArchiveResult::Success,
+                Err(err) => UpgradeFailed(err),
+            }
+        }
+    }
 }
 
 #[init]
@@ -990,6 +1170,36 @@ fn retrieve_data() {
         // re-request them if needed.
         update_root_hash(&s.asset_hashes.borrow(), &s.sigs.borrow());
     });
+
+    // load the persistent state after initializing storage, otherwise the memory address to load it from cannot be calculated
+    load_persistent_state();
+}
+
+#[pre_upgrade]
+fn save_persistent_state() {
+    STATE.with(|s| {
+        s.storage
+            .borrow()
+            .write_persistent_state(&s.persistent_state.borrow())
+            .expect("failed to save persistent state");
+    })
+}
+
+fn load_persistent_state() {
+    STATE.with(|s| {
+        match s.storage.borrow().read_persistent_state() {
+            Ok(loaded_state) => *s.persistent_state.borrow_mut() = loaded_state,
+            Err(PersistentStateError::NotFound) => {
+                // This is allowed for the first release of this feature only!
+                // After this feature has been deployed, we will panic on this error.
+                *s.persistent_state.borrow_mut() = PersistentState::default()
+            }
+            Err(err) => trap(&format!(
+                "failed to recover persistent state! Err: {:?}",
+                err
+            )),
+        }
+    })
 }
 
 fn calculate_seed(user_number: UserNumber, frontend: &FrontendHostname) -> Hash {

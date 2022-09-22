@@ -27,6 +27,18 @@ pub struct DeviceData {
     pub protection: DeviceProtection,
 }
 
+impl From<DeviceData> for DeviceDataWithoutAlias {
+    fn from(device_data: DeviceData) -> Self {
+        Self {
+            pubkey: device_data.pubkey,
+            credential_id: device_data.credential_id,
+            purpose: device_data.purpose,
+            key_type: device_data.key_type,
+            protection: device_data.protection,
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, CandidType, Deserialize)]
 pub enum Purpose {
     #[serde(rename = "recovery")]
@@ -226,6 +238,7 @@ pub struct DeviceDataUpdate {
 // Placeholder for information that has been hidden for privacy reasons.
 #[derive(Eq, PartialEq, Clone, Debug, CandidType, Deserialize)]
 pub enum Private {
+    #[serde(rename = "hidden_for_privacy_reasons")]
     HiddenForPrivacyReasons,
 }
 
@@ -260,4 +273,16 @@ pub enum Cursor {
 pub struct ArchiveInit {
     pub ii_canister: Principal,
     pub max_entries_per_call: u16,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub enum DeployArchiveResult {
+    #[serde(rename = "success")]
+    Success,
+    #[serde(rename = "creation_in_progress")]
+    CreationInProgress,
+    #[serde(rename = "creation_failed")]
+    CreationFailed(String),
+    #[serde(rename = "upgrade_failed")]
+    UpgradeFailed(String),
 }
