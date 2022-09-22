@@ -3,7 +3,7 @@ import { spawn } from "child_process";
 import { get } from "http";
 
 // @ts-ignore
-const log  = require("why-is-node-running");
+// const log  = require("why-is-node-running");
 
 
 console.log("hello");
@@ -80,7 +80,11 @@ async function shoot() {
     }
 
 // @ts-ignore
-    log();
+    //log();
+
+    const showcase = spawn("npm run showcase", { shell: true });
+
+    console.log(showcase.kill());
 }
 
 shoot();
