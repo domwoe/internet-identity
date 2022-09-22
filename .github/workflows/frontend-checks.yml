@@ -22,7 +22,22 @@ jobs:
       - uses: ./.github/actions/setup-node
       - run: rm -v -f screenshots/*.png
       - run: npm ci
-      - run: npm run screenshots
+      - run: |
+
+          echo "Waiting"
+          npm run showcase&
+          foo=$!
+          echo "$foo"
+
+          while ! nc -z localhost 8080; do
+            sleep 0.1 # wait for 1/10 of the second before check again
+          done
+
+          npm run screenshots
+
+
+          kill "$foo"
+
       - run: |
           echo "The following screenshots were created:"
           shasum -a 256 screenshots/*.png | sort -k2 # sort by 2nd column (filename)

@@ -8,17 +8,14 @@ import { get } from "http";
 
 console.log("hello");
 
-
+/*
 function isAccessible(opts: { hostname: string, port: number} ): Promise<boolean> {
     return new Promise((resolve) => {
-        resolve(true);
-        /*
         get(opts, (response) => {
             resolve(true); // TODO: note that care only if replied
         }).on('error', () => {
             resolve(false);
         })
-        */
     });
 }
 
@@ -46,9 +43,10 @@ async function waitUntilAccessible(opts: { hostname: string, port: number}, retr
     throw Error('bwah');
 
 }
+*/
 
 async function shoot() {
-    const showcase = spawn("npm", ["run", "showcase"]);
+    //const showcase = spawn("npm", ["run", "showcase"]);
 
     /*
     showcase.on('close', (code, signal) => {
@@ -64,8 +62,10 @@ async function shoot() {
     });
     */
 
+    await screenshotMeThis({ url: "http://localhost:8080/authenticate" });
+    /*
     try {
-        await waitUntilAccessible({ hostname: "localhost", port: 8080}, 10);
+        // await waitUntilAccessible({ hostname: "localhost", port: 8080}, 10);
 
         await screenshot({ url: "http://localhost:8080/authenticate" });
         console.log("ok we're good");
@@ -75,9 +75,10 @@ async function shoot() {
 
     } finally {
         console.log("killing showcase");
-        console.log(showcase.kill());
+        //console.log(showcase.kill());
         console.log("ok now what");
     }
+    */
 
 // @ts-ignore
     //log();
