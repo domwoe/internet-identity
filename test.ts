@@ -44,6 +44,12 @@ async function waitUntilAccessible(opts: { hostname: string, port: number}, retr
 async function shoot() {
     const showcase = spawn("npm run showcase", { shell: true });
 
+    showcase.on('close', (code, signal) => {
+
+        console.log(`showcase was killed (${code}, ${signal})`);
+
+    });
+
     try {
         await waitUntilAccessible({ hostname: "localhost", port: 8080}, 10);
 
@@ -55,7 +61,7 @@ async function shoot() {
 
     } finally {
         console.log("killing showcase");
-        showcase.kill();
+        console.log(showcase.kill());
         console.log("ok now what");
     }
 }
