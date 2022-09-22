@@ -14,3 +14,21 @@ jobs:
         run: npm run lint
       - name: Check formatting
         run: npm run format-check
+
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/setup-node
+      - run: rm -v -f screenshots/*.png
+      - run: npm ci
+      - run: npm run screenshots
+      - run: |
+          echo "The following screenshots were created:"
+          shasum -a 256 screenshots/*.png | sort -k2 # sort by 2nd column (filename)
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v2
+        with:
+          name: e2e-screenshots-test # TODO: add device here
+          path: screenshots/*.png
