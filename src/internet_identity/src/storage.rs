@@ -288,7 +288,16 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         let encoded_state =
             candid::encode_one(&state).map_err(|err| PersistentStateError::CandidError(err))?;
 
-        let num_wasm_pages_affected = 2 + encoded_state.len() / WASM_PAGE_SIZE;
+        // this block is an additional sanity check to make sure that the calculated address is in the expected range
+        // to make sure we do not override user data
+        // todo make sure this check actually works!
+        {
+            // plus 1 because memory could lie right on the boundary of one wasm page to the next
+            let max_wasm_pages_affected = div_ceil(encoded_state.len(), WASM_PAGE_SIZE) + 1;
+            let address_page = div_ceil(address, WASM_PAGE_SIZE);
+            // compare with >= to allow for growth when actually writing the data
+            assert!(address_page + max_wasm_pages_affected >= stable64_size());
+        }
 
         writer
             .write(&PERSISTENT_STATE_MAGIC)
@@ -300,6 +309,15 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
             .write(&encoded_state)
             .map_err(|err| PersistentStateError::StableMemoryError(err))?;
         Ok(())
+    }
+
+    /// Manual implementation because https://doc.rust-lang.org/std/primitive.i32.html#method.div_ceil is not stable yet.
+    fn div_ceil(a: u64, b: u64) -> u64 {
+        let result = a / b;
+        if a % b != 0 {
+            return result + 1;
+        }
+        result
     }
 
     pub fn read_persistent_state(&self) -> Result<PersistentState, PersistentStateError> {
