@@ -50,6 +50,7 @@ async function waitUntilAccessible(opts: { hostname: string, port: number}, retr
 async function shoot() {
     const showcase = spawn("npm", ["run", "showcase"]);
 
+    /*
     showcase.on('close', (code, signal) => {
         console.log(`showcase was closed (${code}, ${signal})`);
     });
@@ -61,6 +62,7 @@ async function shoot() {
     showcase.on('error', (e) => {
         console.log(`showcase errored (${e})`);
     });
+    */
 
     try {
         await waitUntilAccessible({ hostname: "localhost", port: 8080}, 10);
