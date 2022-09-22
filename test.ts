@@ -48,7 +48,7 @@ async function waitUntilAccessible(opts: { hostname: string, port: number}, retr
 }
 
 async function shoot() {
-    const showcase = spawn("npm run showcase", { shell: true });
+    const showcase = spawn("npm", ["run", "showcase"]);
 
     showcase.on('close', (code, signal) => {
         console.log(`showcase was closed (${code}, ${signal})`);
