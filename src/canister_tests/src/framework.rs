@@ -60,6 +60,9 @@ lazy_static! {
         ", &def_path, &std::env::current_dir().map(|x| x.display().to_string()).unwrap_or("an unknown directory".to_string()));
         get_wasm_path("II_WASM".to_string(), &def_path).expect(&err)
     };
+
+    /** Empty WASM module (without any pre- and post-upgrade hooks. Useful to initialize a canister before loading a stable memory backup. */
+    pub static ref EMPTY_WASM: Vec<u8> = vec![0, 0x61, 0x73, 0x6D, 1, 0, 0, 0];
 }
 
 /** Helper that returns the content of `default_path` if found, or None if the file does not exist.
@@ -94,6 +97,10 @@ fn get_wasm_path(env_var: String, default_path: &path::PathBuf) -> Option<Vec<u8
 }
 
 /* Here are a few useful helpers for writing tests */
+pub fn install_empty_canister(env: &StateMachine) -> CanisterId {
+    env.install_canister(EMPTY_WASM.clone(), vec![], None)
+        .expect("failed to install empty canister.")
+}
 
 pub fn install_ii_canister(env: &StateMachine, wasm: Vec<u8>) -> CanisterId {
     install_ii_canister_with_arg(&env, wasm, None)
