@@ -2,19 +2,6 @@ import { remote } from "webdriverio";
 import { spawn } from "child_process";
 import { get } from "http";
 
-/** Disable blinking cursor for the duration of `cb` (e.g. in input fields) */
-async function hideCursor<T>(
-  browser: WebdriverIO.Browser,
-  cb: () => T
-): Promise<T> {
-  // Hide blinking cursor before taking screenshots (otherwise screenshot depends
-  // on the cursor state)
-  await browser.execute('document.body.style.caretColor = "transparent"');
-  const res = await cb();
-  await browser.execute('document.body.style.removeProperty("caret-color")');
-  return res;
-}
-
 /** Create a chrome instance and run callback, deleting session afterwards */
 async function withChrome<T>(
   cb: (browser: WebdriverIO.Browser) => T
@@ -57,23 +44,22 @@ async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
   );
 
   // Ensure bliking cursors don't mess up screenshots
-  await hideCursor(browser, async () => {
-    for (const pageName of pageNames) {
-      // Skip the loader, because it's animated
-      if (pageName === "loader") {
-        continue;
-      }
-
-      // In the case of the faq we modify the URL slightly to show an open entry
-      if (pageName === "faq") {
-        await visit(browser, `http://localhost:8080/${pageName}#lost-device`);
-      } else {
-        await visit(browser, `http://localhost:8080/${pageName}`);
-      }
-
-      await browser.saveScreenshot(`./screenshots/${pageName}.png`);
+  for (const pageName of pageNames) {
+    // Skip the loader, because it's animated
+    if (pageName === "loader") {
+      continue;
     }
-  });
+
+    // In the case of the faq we modify the URL slightly to show an open entry
+    if (pageName === "faq") {
+      await visit(browser, `http://localhost:8080/${pageName}#lost-device`);
+    } else {
+      await visit(browser, `http://localhost:8080/${pageName}`);
+    }
+
+    await browser.execute('document.body.style.caretColor = "transparent"');
+    await browser.saveScreenshot(`./screenshots/${pageName}.png`);
+  }
 }
 
 async function main() {
