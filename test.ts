@@ -8,6 +8,7 @@ import { get } from "http";
 
 console.log("hello");
 
+
 /*
 function isAccessible(opts: { hostname: string, port: number} ): Promise<boolean> {
     return new Promise((resolve) => {
@@ -60,7 +61,11 @@ async function shoot() {
     showcase.on('error', (e) => {
         console.log(`showcase errored (${e})`);
     });
+
     */
+
+
+
 
     await screenshotMeThis({ url: "http://localhost:8080/authenticate" });
     /*
@@ -103,7 +108,7 @@ async function screenshotMeThis(opts: { url: string }) {
         },
     })
 
-    await browser.url(opts.url)
+    await browser.url("http://localhost:8080/")
 
     browser.waitUntil(
         () => browser.execute(() => document.readyState === 'complete'),
@@ -113,9 +118,35 @@ async function screenshotMeThis(opts: { url: string }) {
         }
     );
 
-    await browser.saveScreenshot('./screenshots/my-new-screenshot.png');
+    const pageLinks = await browser.$$("[data-page-name]");
+    const pageNames = await Promise.all(pageLinks.map(async (link) => {
+        const pageName = await link.getAttribute("data-page-name");
+        console.log(`Fished ou this: ${pageName}`);
+        return pageName;
+    }));
+
+    console.log(pageNames);
+
+    // TODO: skip loader
+    for (const pageName of pageNames) {
+        console.log(`Page name: ${pageName}`);
+
+        if (pageName === "loader") { continue; }
+
+        await browser.url(`http://localhost:8080/${pageName}`);
+
+        browser.waitUntil(
+            () => browser.execute(() => document.readyState === 'complete'),
+                {
+                timeout: 10 * 1000,
+                timeoutMsg: 'Browser did not load after 10 seconds'
+            }
+        );
+
+        await browser.saveScreenshot(`./screenshots/${pageName}.png`);
+    }
+
     await browser.deleteSession();
-    await browser.pause(1);
 }
 
 async function screenshot(opts: { url: string }) {
