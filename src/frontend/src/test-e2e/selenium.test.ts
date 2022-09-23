@@ -31,7 +31,6 @@ import {
   originToRelyingPartyId,
   removeFeaturesWarning,
   removeVirtualAuthenticator,
-  RunConfiguration,
   runInBrowser,
   switchToPopup,
   waitToClose,

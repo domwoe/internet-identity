@@ -28,20 +28,14 @@ jobs:
       - run: rm -v -f screenshots/*.png
       - run: npm ci
       - run: |
-
-          echo "Waiting"
           npm run showcase&
-          foo=$!
-          echo "$foo"
+          showcase_pid=$!
 
           while ! nc -z localhost 8080; do
             sleep 0.1 # wait for 1/10 of the second before check again
           done
-
           npm run screenshots # TODO:add device here
-
-
-          kill "$foo"
+          kill "$showcase_pid"
 
       - run: |
           echo "The following screenshots were created:"

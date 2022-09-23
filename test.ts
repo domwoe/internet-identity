@@ -6,11 +6,21 @@ import { get } from "http";
 async function withChrome<T>(
   cb: (browser: WebdriverIO.Browser) => T
 ): Promise<T> {
+  // Screenshot image dimension, if specified
+  const dim = process.env["SCREENSHOTS_DIMENSION"];
+
   const browser = await remote({
     capabilities: {
       browserName: "chrome",
       "goog:chromeOptions": {
-        args: ["headless", "disable-gpu"],
+        args: [
+          "headless",
+          "disable-gpu",
+          //          ...(dim !== undefined ? [`--window-size=${dim}`] : []),
+        ],
+        mobileEmulation: {
+          deviceMetrics: { height: 667, width: 375, pixelRatio: 3 },
+        },
       },
     },
   });
@@ -43,7 +53,9 @@ async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
     })
   );
 
-  // Ensure bliking cursors don't mess up screenshots
+  const screenshotsDir = process.env["SCREENSHOTS_DIR"] ?? "./screenshots";
+
+  // Ensure blinking cursors don't mess up screenshots
   for (const pageName of pageNames) {
     // Skip the loader, because it's animated
     if (pageName === "loader") {
@@ -58,7 +70,7 @@ async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
     }
 
     await browser.execute('document.body.style.caretColor = "transparent"');
-    await browser.saveScreenshot(`./screenshots/${pageName}.png`);
+    await browser.saveScreenshot(`${screenshotsDir}/${pageName}.png`);
   }
 }
 
