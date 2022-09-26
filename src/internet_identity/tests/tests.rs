@@ -352,7 +352,7 @@ mod stable_memory_tests {
     use canister_tests::framework;
     use canister_tests::framework::{
         expect_user_error_with_message, principal_1, principal_recovery_1, principal_recovery_2,
-        recovery_device_data_1, recovery_device_data_2, CallError,
+        recovery_device_data_1, recovery_device_data_2, CallError, EMPTY_WASM,
     };
     use ic_error_types::ErrorCode::CanisterCalledTrap;
     use ic_state_machine_tests::StateMachine;
@@ -465,7 +465,7 @@ mod stable_memory_tests {
         ));
 
         let env = StateMachine::new();
-        let canister_id = framework::install_ii_canister(&env, framework::II_WASM.clone());
+        let canister_id = framework::install_empty_canister(&env);
 
         let stable_memory_backup =
             std::fs::read(PathBuf::from("stable_memory/genesis-memory-layout.bin")).unwrap();
@@ -506,7 +506,7 @@ mod stable_memory_tests {
         let public_key = hex::decode("305e300c060a2b0601040183b8430101034e00a50102032620012158206c52bead5df52c208a9b1c7be0a60847573e5be4ac4fe08ea48036d0ba1d2acf225820b33daeb83bc9c77d8ad762fd68e3eab08684e463c49351b3ab2a14a400138387").unwrap();
         let principal = PrincipalId(Principal::self_authenticating(public_key.clone()));
         let env = StateMachine::new();
-        let canister_id = framework::install_ii_canister(&env, framework::II_WASM.clone());
+        let canister_id = framework::install_empty_canister(&env);
 
         let stable_memory_backup =
             std::fs::read(PathBuf::from("stable_memory/genesis-memory-layout.bin")).unwrap();
@@ -535,7 +535,7 @@ mod stable_memory_tests {
     #[test]
     fn should_not_break_on_multiple_legacy_recovery_phrases() -> Result<(), CallError> {
         let env = StateMachine::new();
-        let canister_id = framework::install_ii_canister(&env, framework::II_WASM.clone());
+        let canister_id = framework::install_empty_canister(&env);
         let frontend_hostname = "frontend_hostname".to_string();
         let session_key = ByteBuf::from("session_key");
 
@@ -571,7 +571,7 @@ mod stable_memory_tests {
     #[test]
     fn should_allow_modification_after_deleting_second_recovery_phrase() -> Result<(), CallError> {
         let env = StateMachine::new();
-        let canister_id = framework::install_ii_canister(&env, framework::II_WASM.clone());
+        let canister_id = framework::install_empty_canister(&env);
 
         let stable_memory_backup =
             std::fs::read(PathBuf::from("stable_memory/multiple-recovery-phrases.bin")).unwrap();

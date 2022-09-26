@@ -131,7 +131,7 @@ struct UsageMetrics {
 }
 
 #[derive(Clone, Default, CandidType, Deserialize)]
-struct PersistentState {}
+pub struct PersistentState {}
 
 struct State {
     storage: RefCell<Storage<Vec<DeviceDataInternal>>>,
