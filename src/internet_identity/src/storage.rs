@@ -282,9 +282,10 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         &self,
         state: &PersistentState,
     ) -> Result<(), PersistentStateError> {
-        let address = self.storage.borrow().unused_memory_start();
+        let address = self.unused_memory_start();
 
-        let mut writer = StableWriter::with_memory(CanisterStableMemory::default(), address);
+        let mut writer =
+            StableWriter::with_memory(CanisterStableMemory::default(), address as usize);
         let encoded_state =
             candid::encode_one(state).map_err(|err| PersistentStateError::CandidError(err))?;
 
@@ -293,7 +294,7 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         // todo make sure this check actually works!
         {
             // plus 1 because memory could lie right on the boundary of one wasm page to the next
-            let max_wasm_pages_affected = div_ceil(encoded_state.len(), WASM_PAGE_SIZE) + 1;
+            let max_wasm_pages_affected = div_ceil(encoded_state.len() as u64, WASM_PAGE_SIZE) + 1;
             let address_page = div_ceil(address, WASM_PAGE_SIZE);
             // compare with >= to allow for growth when actually writing the data
             assert!(address_page + max_wasm_pages_affected >= stable64_size());
@@ -311,18 +312,10 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         Ok(())
     }
 
-    /// Manual implementation because https://doc.rust-lang.org/std/primitive.i32.html#method.div_ceil is not stable yet.
-    fn div_ceil(a: u64, b: u64) -> u64 {
-        let result = a / b;
-        if a % b != 0 {
-            return result + 1;
-        }
-        result
-    }
-
     pub fn read_persistent_state(&self) -> Result<PersistentState, PersistentStateError> {
-        let address = self.storage.borrow().unused_memory_start();
-        let mut reader = StableReader::with_memory(CanisterStableMemory::default(), address);
+        let address = self.unused_memory_start();
+        let mut reader =
+            StableReader::with_memory(CanisterStableMemory::default(), address as usize);
 
         let mut magic_buf: [u8; 4] = [0; 4];
         reader
@@ -341,13 +334,23 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         let size = u64::from_le_bytes(size_buf);
         let mut data_buf = Vec::with_capacity(size as usize);
         reader
-            .read(data_buf.try_into().unwrap())
+            .read(data_buf.as_mut_slice())
             .map_err(|err| PersistentStateError::StableMemoryError(err))?;
 
         candid::decode_one(&data_buf).map_err(|err| PersistentStateError::CandidError(err))
     }
 }
 
+/// Manual implementation because https://doc.rust-lang.org/std/primitive.u64.html#method.div_ceil is not stable yet.
+fn div_ceil(a: u64, b: u64) -> u64 {
+    let result = a / b;
+    if a % b != 0 {
+        return result + 1;
+    }
+    result
+}
+
+#[derive(Debug)]
 pub enum PersistentStateError {
     CandidError(candid::error::Error),
     NotFound,
