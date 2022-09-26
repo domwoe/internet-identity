@@ -952,6 +952,7 @@ fn stats() -> InternetIdentityStats {
 
 #[init]
 fn init(maybe_arg: Option<InternetIdentityInit>) {
+    load_persistent_state();
     init_assets();
     STATE.with(|state| {
         if let Some(arg) = maybe_arg {
