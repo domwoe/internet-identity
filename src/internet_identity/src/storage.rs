@@ -5,6 +5,7 @@ use ic_cdk::api::{
     stable::{stable64_grow, stable64_read, stable64_size, stable64_write},
     trap,
 };
+use ic_cdk::print;
 use internet_identity_interface::UserNumber;
 use std::convert::TryInto;
 use std::fmt;
@@ -291,7 +292,6 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
 
         // this block is an additional sanity check to make sure that the calculated address is in the expected range
         // to make sure we do not override user data
-        // todo make sure this check actually works!
         {
             // plus 1 because memory could lie right on the boundary of one wasm page to the next
             let max_wasm_pages_affected = div_ceil(encoded_state.len() as u64, WASM_PAGE_SIZE) + 1;

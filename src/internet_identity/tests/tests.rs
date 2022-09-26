@@ -352,7 +352,7 @@ mod stable_memory_tests {
     use canister_tests::framework;
     use canister_tests::framework::{
         expect_user_error_with_message, principal_1, principal_recovery_1, principal_recovery_2,
-        recovery_device_data_1, recovery_device_data_2, CallError, EMPTY_WASM,
+        recovery_device_data_1, recovery_device_data_2, CallError,
     };
     use ic_error_types::ErrorCode::CanisterCalledTrap;
     use ic_state_machine_tests::StateMachine;
