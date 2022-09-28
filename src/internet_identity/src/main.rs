@@ -983,14 +983,15 @@ async fn upgrade_archive(wasm: ByteBuf) -> UpgradeArchiveResult {
             match result {
                 Err(e) => {
                     STATE.with(|s| {
+                        // unlock archive creation again
                         s.persistent_state.borrow_mut().archive_info = ArchiveState::NotCreated
                     });
-                    // unlock archive creation
                     return CreationFailed(format!("failed to create archive: {:?}", e));
                 }
                 Ok(data) => {
                     let archive_canister_id = data.archive_canister;
                     STATE.with(|s| {
+                        // safe archive info permanently
                         s.persistent_state.borrow_mut().archive_info = ArchiveState::Created(data)
                     });
                     match archive::install_archive(archive_canister_id, wasm.into_vec()).await {
