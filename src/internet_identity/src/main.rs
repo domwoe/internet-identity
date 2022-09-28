@@ -5,7 +5,7 @@ use crate::RegistrationState::{DeviceRegistrationModeActive, DeviceTentativelyAd
 use crate::VerifyTentativeDeviceResponse::{NoDeviceToVerify, WrongCode};
 use assets::ContentType;
 use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::api::call::call;
+use ic_cdk::api::call::{call, CallResult};
 use ic_cdk::api::{caller, data_certificate, id, set_certified_data, time, trap};
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, query, update};
 use ic_certified_map::{AsHashTree, Hash, HashTree, RbTree};
@@ -16,6 +16,7 @@ use serde_bytes::ByteBuf;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fmt::format;
 use std::ops::Deref;
 use storage::{Salt, Storage};
 
@@ -29,6 +30,8 @@ const fn secs_to_nanos(secs: u64) -> u64 {
     secs * 1_000_000_000
 }
 
+use crate::archive::{ArchiveData, ArchiveState};
+use crate::UpgradeArchiveResult::{CreationFailed, UpgradeFailed};
 #[cfg(not(feature = "dummy_captcha"))]
 use captcha::filters::Wave;
 
@@ -133,8 +136,8 @@ struct UsageMetrics {
 
 #[derive(Clone, Default, CandidType, Deserialize)]
 pub struct PersistentState {
-    // Information related to the archive, if any.
-    archive_data: Option<archive::ArchiveData>,
+    // Information related to the archive
+    archive_info: ArchiveState,
 }
 
 struct State {
@@ -952,6 +955,59 @@ fn stats() -> InternetIdentityStats {
             users_registered: storage.user_count() as u64,
         }
     })
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub enum UpgradeArchiveResult {
+    Ok,
+    CreationInProgress,
+    CreationFailed(String),
+    UpgradeFailed(String),
+}
+
+#[update]
+async fn upgrade_archive(wasm: ByteBuf) -> UpgradeArchiveResult {
+    let archive_state = STATE.with(|s| match &s.persistent_state.borrow().archive_info {
+        &ArchiveState::None => {
+            // lock archive creation because of async operation
+            *s.persistent_state.borrow_mut().archive_info = ArchiveState::CreationInProgress;
+            ArchiveState::None
+        }
+        state => state,
+    });
+
+    match archive_state {
+        ArchiveState::None => {
+            let result = archive::create_archive().await;
+
+            match result {
+                Err(e) => {
+                    STATE.with(|s| {
+                        *s.persistent_state.borrow_mut().archive_info = ArchiveState::None
+                    });
+                    // unlock archive creation
+                    return CreationFailed(format!("failed to create archive: {:?}", e));
+                }
+                Ok(data) => {
+                    let archive_canister_id = data.archive_canister;
+                    STATE.with(|s| {
+                        *s.persistent_state.borrow_mut().archive_info = ArchiveState::Created(data)
+                    });
+                    archive::upgrade_archive(archive_canister_id, wasm.into_vec())
+                        .await
+                        .map(|_| Ok(()))
+                        .map_err(|err| UpgradeFailed(err))
+                }
+            }
+        }
+        ArchiveState::CreationInProgress => UpgradeArchiveResult::CreationInProgress,
+        ArchiveState::Created(data) => {
+            archive::upgrade_archive(data.archive_canister, wasm.into_vec())
+                .await
+                .map(|_| Ok(()))
+                .map_err(|err| UpgradeFailed(err))
+        }
+    }
 }
 
 #[init]

@@ -168,4 +168,6 @@ service : (opt InternetIdentityInit) -> {
   get_delegation: (UserNumber, FrontendHostname, SessionKey, Timestamp) -> (GetDelegationResponse) query;
 
   http_request: (request: HttpRequest) -> (HttpResponse) query;
+
+  upgrade_archive: (wasm: blob) -> ();
 }

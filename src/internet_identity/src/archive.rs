@@ -1,4 +1,6 @@
 use candid::{CandidType, Deserialize, Principal};
+use canister_tests::framework::CallError;
+use ic_cdk::api::call::CallResult;
 use ic_cdk::api::management_canister::main::{
     canister_status, create_canister, install_code, CanisterIdRecord, CanisterInstallMode,
     CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
@@ -18,35 +20,50 @@ lazy_static! {
             .unwrap();
 }
 
+/// State of the archive canister.
+#[derive(Clone, CandidType, Deserialize)]
+pub enum ArchiveState {
+    None,                 // Archive has not been created.
+    CreationInProgress,   // Archive is being created.
+    Created(ArchiveData), // Archive exists.
+}
+
 /// Management metadata about the archive.
 #[derive(Clone, CandidType, Deserialize)]
 pub struct ArchiveData {
     // Sequence number of anchor operations. Using this sequence number missing entries / reliability
     // can be assessed without having explicit error handling on the II side.
-    archive_seq_number: u64,
+    pub archive_seq_number: u64,
     // Canister id of the archive canister
-    archive_canister: Principal,
+    pub archive_canister: Principal,
 }
 
-pub async fn spawn_new_archive() -> ArchiveData {
-    let (result,) = create_canister(CreateCanisterArgument { settings: None })
-        .await
-        .expect("failed to create archive canister");
-
-    ArchiveData {
-        archive_seq_number: 0,
-        archive_canister: result.canister_id,
+impl Default for ArchiveData {
+    fn default() -> Self {
+        Self
     }
 }
 
-pub async fn upgrade_archive(archive_canister: Principal, wasm_module: Vec<u8>) {
+pub async fn create_archive() -> CallResult<ArchiveData> {
+    let (result,) = create_canister(CreateCanisterArgument { settings: None }).await?;
+
+    Ok(ArchiveData {
+        archive_seq_number: 0,
+        archive_canister: result.canister_id,
+    })
+}
+
+pub async fn upgrade_archive(
+    archive_canister: Principal,
+    wasm_module: Vec<u8>,
+) -> Result<(), String> {
     verify_wasm_hash(&wasm_module);
 
     let (archive_status,) = canister_status(CanisterIdRecord {
         canister_id: archive_canister,
     })
     .await
-    .expect("failed to retrieve archive status");
+    .map_err(|err| format!("failed to retrieve archive status: {:?}", err))?;
 
     if archive_status
         .module_hash
@@ -54,15 +71,15 @@ pub async fn upgrade_archive(archive_canister: Principal, wasm_module: Vec<u8>) 
         .unwrap_or(false)
     {
         // Don't do anything if the archive canister already has the given module installed
-        return;
+        return Ok(());
     }
 
     let settings = ArchiveInit {
         ii_canister: id(),
         max_entries_per_call: 1000,
     };
-    let encoded_arg =
-        candid::encode_one(settings).expect("failed to encode archive install argument");
+    let encoded_arg = candid::encode_one(settings)
+        .map_err(|err| format!("failed to encode archive install argument: {:?}", err))?;
 
     install_code(InstallCodeArgument {
         mode: Upgrade,
@@ -71,7 +88,7 @@ pub async fn upgrade_archive(archive_canister: Principal, wasm_module: Vec<u8>) 
         arg: encoded_arg,
     })
     .await
-    .expect("failed to upgrade archive canister");
+    .map_err(|err| format!("failed to upgrade archive canister: {:?}", err))
 }
 
 fn verify_wasm_hash(wasm_module: &Vec<u8>) {
