@@ -1,5 +1,4 @@
 use candid::{CandidType, Deserialize, Principal};
-use canister_tests::framework::CallError;
 use ic_cdk::api::call::CallResult;
 use ic_cdk::api::management_canister::main::CanisterInstallMode::Install;
 use ic_cdk::api::management_canister::main::{
@@ -69,6 +68,7 @@ pub async fn install_archive(
 
     let module_hash = archive_status.module_hash;
     if module_hash
+        .clone()
         .map(|hash| hash == ARCHIVE_HASH.clone())
         .unwrap_or(false)
     {
