@@ -968,22 +968,22 @@ pub enum UpgradeArchiveResult {
 #[update]
 async fn upgrade_archive(wasm: ByteBuf) -> UpgradeArchiveResult {
     let archive_state = STATE.with(|s| match &s.persistent_state.borrow().archive_info {
-        &ArchiveState::None => {
+        &ArchiveState::NotCreated => {
             // lock archive creation because of async operation
             *s.persistent_state.borrow_mut().archive_info = ArchiveState::CreationInProgress;
-            ArchiveState::None
+            ArchiveState::NotCreated
         }
         state => state,
     });
 
     match archive_state {
-        ArchiveState::None => {
+        ArchiveState::NotCreated => {
             let result = archive::create_archive().await;
 
             match result {
                 Err(e) => {
                     STATE.with(|s| {
-                        *s.persistent_state.borrow_mut().archive_info = ArchiveState::None
+                        *s.persistent_state.borrow_mut().archive_info = ArchiveState::NotCreated
                     });
                     // unlock archive creation
                     return CreationFailed(format!("failed to create archive: {:?}", e));
@@ -993,7 +993,7 @@ async fn upgrade_archive(wasm: ByteBuf) -> UpgradeArchiveResult {
                     STATE.with(|s| {
                         *s.persistent_state.borrow_mut().archive_info = ArchiveState::Created(data)
                     });
-                    archive::upgrade_archive(archive_canister_id, wasm.into_vec())
+                    archive::install_archive(archive_canister_id, wasm.into_vec())
                         .await
                         .map(|_| Ok(()))
                         .map_err(|err| UpgradeFailed(err))
@@ -1002,7 +1002,7 @@ async fn upgrade_archive(wasm: ByteBuf) -> UpgradeArchiveResult {
         }
         ArchiveState::CreationInProgress => UpgradeArchiveResult::CreationInProgress,
         ArchiveState::Created(data) => {
-            archive::upgrade_archive(data.archive_canister, wasm.into_vec())
+            archive::install_archive(data.archive_canister, wasm.into_vec())
                 .await
                 .map(|_| Ok(()))
                 .map_err(|err| UpgradeFailed(err))

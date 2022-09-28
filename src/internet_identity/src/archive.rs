@@ -1,15 +1,17 @@
 use candid::{CandidType, Deserialize, Principal};
 use canister_tests::framework::CallError;
 use ic_cdk::api::call::CallResult;
+use ic_cdk::api::management_canister::main::CanisterInstallMode::Install;
 use ic_cdk::api::management_canister::main::{
     canister_status, create_canister, install_code, CanisterIdRecord, CanisterInstallMode,
     CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
 };
-use ic_cdk::{call, id, trap};
+use ic_cdk::{call, id};
 use internet_identity_interface::ArchiveInit;
 use lazy_static::lazy_static;
 use sha2::Digest;
 use sha2::Sha256;
+use ArchiveState::NotCreated;
 use CanisterInstallMode::Upgrade;
 
 lazy_static! {
@@ -23,9 +25,15 @@ lazy_static! {
 /// State of the archive canister.
 #[derive(Clone, CandidType, Deserialize)]
 pub enum ArchiveState {
-    None,                 // Archive has not been created.
+    NotCreated,           // Archive has not been created.
     CreationInProgress,   // Archive is being created.
     Created(ArchiveData), // Archive exists.
+}
+
+impl Default for ArchiveState {
+    fn default() -> Self {
+        NotCreated
+    }
 }
 
 /// Management metadata about the archive.
@@ -38,12 +46,6 @@ pub struct ArchiveData {
     pub archive_canister: Principal,
 }
 
-impl Default for ArchiveData {
-    fn default() -> Self {
-        Self
-    }
-}
-
 pub async fn create_archive() -> CallResult<ArchiveData> {
     let (result,) = create_canister(CreateCanisterArgument { settings: None }).await?;
 
@@ -53,11 +55,11 @@ pub async fn create_archive() -> CallResult<ArchiveData> {
     })
 }
 
-pub async fn upgrade_archive(
+pub async fn install_archive(
     archive_canister: Principal,
     wasm_module: Vec<u8>,
 ) -> Result<(), String> {
-    verify_wasm_hash(&wasm_module);
+    verify_wasm_hash(&wasm_module)?;
 
     let (archive_status,) = canister_status(CanisterIdRecord {
         canister_id: archive_canister,
@@ -65,14 +67,19 @@ pub async fn upgrade_archive(
     .await
     .map_err(|err| format!("failed to retrieve archive status: {:?}", err))?;
 
-    if archive_status
-        .module_hash
+    let module_hash = archive_status.module_hash;
+    if module_hash
         .map(|hash| hash == ARCHIVE_HASH.clone())
         .unwrap_or(false)
     {
-        // Don't do anything if the archive canister already has the given module installed
+        // Don't do anything further if the archive canister has the given module already installed
         return Ok(());
     }
+
+    let mode = match module_hash {
+        None => Install,
+        Some(_) => Upgrade,
+    };
 
     let settings = ArchiveInit {
         ii_canister: id(),
@@ -82,21 +89,22 @@ pub async fn upgrade_archive(
         .map_err(|err| format!("failed to encode archive install argument: {:?}", err))?;
 
     install_code(InstallCodeArgument {
-        mode: Upgrade,
+        mode,
         canister_id: archive_canister,
         wasm_module,
         arg: encoded_arg,
     })
     .await
-    .map_err(|err| format!("failed to upgrade archive canister: {:?}", err))
+    .map_err(|err| format!("failed to install archive canister: {:?}", err))
 }
 
-fn verify_wasm_hash(wasm_module: &Vec<u8>) {
+fn verify_wasm_hash(wasm_module: &Vec<u8>) -> Result<(), String> {
     let mut hasher = Sha256::new();
     hasher.update(&wasm_module);
     let wasm_hash: [u8; 32] = hasher.finalize().into();
 
     if wasm_hash != ARCHIVE_HASH.clone() {
-        trap("invalid wasm module")
+        return Err("invalid wasm module".to_string());
     }
+    Ok(())
 }
