@@ -1,11 +1,22 @@
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::management_canister::main::{
     canister_status, create_canister, install_code, CanisterIdRecord, CanisterInstallMode,
-    CreateCanisterArgument, InstallCodeArgument,
+    CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
 };
 use ic_cdk::{call, id, trap};
 use internet_identity_interface::ArchiveInit;
+use lazy_static::lazy_static;
+use sha2::Digest;
+use sha2::Sha256;
 use CanisterInstallMode::Upgrade;
+
+lazy_static! {
+    static ref ARCHIVE_HASH: [u8; 32] =
+        hex::decode("3e7af31f4bacf515ebe3c5befa9e7a836f36aa7441a9cbcfdaafa8b7bfd1cbe7")
+            .unwrap()
+            .try_into()
+            .unwrap();
+}
 
 /// Management metadata about the archive.
 #[derive(Clone, CandidType, Deserialize)]
@@ -18,7 +29,7 @@ pub struct ArchiveData {
 }
 
 pub async fn spawn_new_archive() -> ArchiveData {
-    let result = create_canister(CreateCanisterArgument { settings: None })
+    let (result,) = create_canister(CreateCanisterArgument { settings: None })
         .await
         .expect("failed to create archive canister");
 
@@ -29,11 +40,28 @@ pub async fn spawn_new_archive() -> ArchiveData {
 }
 
 pub async fn upgrade_archive(archive_canister: Principal, wasm_module: Vec<u8>) {
-    let archive_status = canister_status(CanisterIdRecord {
+    let mut hasher = Sha256::new();
+    hasher.update(&wasm_module);
+    let wasm_hash: [u8; 32] = hasher.finalize().into();
+
+    if wasm_hash != ARCHIVE_HASH.clone() {
+        trap("invalid wasm module")
+    }
+
+    let (archive_status,) = canister_status(CanisterIdRecord {
         canister_id: archive_canister,
     })
     .await
     .expect("failed to retrieve archive status");
+
+    if archive_status
+        .module_hash
+        .map(|hash| hash == ARCHIVE_HASH.clone())
+        .unwrap_or(false)
+    {
+        // the canister already has the given module installed --> don't do anything
+        return;
+    }
 
     let settings = ArchiveInit {
         ii_canister: id(),
