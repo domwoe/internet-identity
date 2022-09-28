@@ -40,13 +40,7 @@ pub async fn spawn_new_archive() -> ArchiveData {
 }
 
 pub async fn upgrade_archive(archive_canister: Principal, wasm_module: Vec<u8>) {
-    let mut hasher = Sha256::new();
-    hasher.update(&wasm_module);
-    let wasm_hash: [u8; 32] = hasher.finalize().into();
-
-    if wasm_hash != ARCHIVE_HASH.clone() {
-        trap("invalid wasm module")
-    }
+    verify_wasm_hash(&wasm_module);
 
     let (archive_status,) = canister_status(CanisterIdRecord {
         canister_id: archive_canister,
@@ -59,7 +53,7 @@ pub async fn upgrade_archive(archive_canister: Principal, wasm_module: Vec<u8>) 
         .map(|hash| hash == ARCHIVE_HASH.clone())
         .unwrap_or(false)
     {
-        // the canister already has the given module installed --> don't do anything
+        // Don't do anything if the archive canister already has the given module installed
         return;
     }
 
@@ -78,4 +72,14 @@ pub async fn upgrade_archive(archive_canister: Principal, wasm_module: Vec<u8>) 
     })
     .await
     .expect("failed to upgrade archive canister");
+}
+
+fn verify_wasm_hash(wasm_module: &Vec<u8>) {
+    let mut hasher = Sha256::new();
+    hasher.update(&wasm_module);
+    let wasm_hash: [u8; 32] = hasher.finalize().into();
+
+    if wasm_hash != ARCHIVE_HASH.clone() {
+        trap("invalid wasm module")
+    }
 }
