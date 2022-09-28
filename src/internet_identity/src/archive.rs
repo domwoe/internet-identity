@@ -1,7 +1,7 @@
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::management_canister::main::{
-    create_canister, install_code, CanisterIdRecord, CanisterInstallMode, CreateCanisterArgument,
-    InstallCodeArgument,
+    canister_status, create_canister, install_code, CanisterIdRecord, CanisterInstallMode,
+    CreateCanisterArgument, InstallCodeArgument,
 };
 use ic_cdk::{call, id, trap};
 use internet_identity_interface::ArchiveInit;
@@ -18,10 +18,9 @@ pub struct ArchiveData {
 }
 
 pub async fn spawn_new_archive() -> ArchiveData {
-    let result = match create_canister(CreateCanisterArgument { settings: None }).await {
-        Ok((res,)) => res,
-        Err((_, err)) => trap(&format!("failed to create archive canister: {}", err)),
-    };
+    let result = create_canister(CreateCanisterArgument { settings: None })
+        .await
+        .expect("failed to create archive canister");
 
     ArchiveData {
         archive_seq_number: 0,
@@ -30,6 +29,12 @@ pub async fn spawn_new_archive() -> ArchiveData {
 }
 
 pub async fn upgrade_archive(archive_canister: Principal, wasm_module: Vec<u8>) {
+    let archive_status = canister_status(CanisterIdRecord {
+        canister_id: archive_canister,
+    })
+    .await
+    .expect("failed to retrieve archive status");
+
     let settings = ArchiveInit {
         ii_canister: id(),
         max_entries_per_call: 1000,
