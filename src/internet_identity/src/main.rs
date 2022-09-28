@@ -21,6 +21,7 @@ use storage::{Salt, Storage};
 
 use internet_identity_interface::*;
 
+mod archive;
 mod assets;
 mod http;
 
@@ -131,7 +132,10 @@ struct UsageMetrics {
 }
 
 #[derive(Clone, Default, CandidType, Deserialize)]
-pub struct PersistentState {}
+pub struct PersistentState {
+    // Information related to the archive, if any.
+    archive_data: Option<archive::ArchiveData>,
+}
 
 struct State {
     storage: RefCell<Storage<Vec<DeviceDataInternal>>>,
