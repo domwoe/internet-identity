@@ -7,9 +7,8 @@ use ic_cdk::api::management_canister::main::{
     CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
 };
 use ic_cdk::{call, id, notify};
-use ic_types::CanisterId;
 use internet_identity_interface::{
-    ArchiveInit, DeviceData, DeviceDataUpdate, DeviceProtection, LogEntry,
+    ArchiveInit, DeviceData, DeviceDataUpdate, DeviceProtection, Hidden, LogEntry,
 };
 use lazy_static::lazy_static;
 use sha2::Digest;
@@ -105,7 +104,7 @@ pub async fn install_archive(
 pub fn write_entry(archive_canister: Principal, operation: LogEntry) {
     let encoded_entry = candid::encode_one(operation).expect("failed to encode log entry");
     // Notify only fails if the message cannot be enqueued.
-    notify(archive_canister, "write_entry", encoded_entry)
+    notify(archive_canister, "write_entry", (encoded_entry,))
         .expect("failed to send log entry notification");
 }
 
@@ -143,7 +142,7 @@ pub fn calculate_device_diff(old: &DeviceDataInternal, new: &DeviceData) -> Devi
         alias: if old.alias == new.alias {
             None
         } else {
-            Some(Hidden)
+            Some(Hidden::HiddenForPrivacyReasons)
         },
         credential_id: if old.credential_id == new.credential_id {
             None
