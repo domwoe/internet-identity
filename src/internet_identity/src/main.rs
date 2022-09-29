@@ -1139,7 +1139,6 @@ fn init(maybe_arg: Option<InternetIdentityInit>) {
 
 #[post_upgrade]
 fn retrieve_data() {
-    load_persistent_state();
     init_assets();
     STATE.with(|s| {
         s.last_upgrade_timestamp.set(time() as u64);
@@ -1172,6 +1171,9 @@ fn retrieve_data() {
         // re-request them if needed.
         update_root_hash(&s.asset_hashes.borrow(), &s.sigs.borrow());
     });
+
+    // load the persistent state _after_ initializing storage, otherwise the memory address to load it from cannot be calculated
+    load_persistent_state();
 }
 
 #[pre_upgrade]
