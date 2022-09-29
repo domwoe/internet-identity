@@ -313,6 +313,11 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
 
     pub fn read_persistent_state(&self) -> Result<PersistentState, PersistentStateError> {
         let address = self.unused_memory_start();
+        if stable64_size() * WASM_PAGE_SIZE < address {
+            // Handle fresh installs of II: stable memory size is 0 thus the address points out of bounds
+            return Err(PersistentStateError::NotFound);
+        }
+
         let mut reader =
             StableReader::with_memory(CanisterStableMemory::default(), address as usize);
 
