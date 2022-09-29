@@ -5,6 +5,7 @@ use ic_cdk::api::{
     stable::{stable64_grow, stable64_read, stable64_size, stable64_write},
     trap,
 };
+use ic_cdk::print;
 use internet_identity_interface::UserNumber;
 use std::convert::TryInto;
 use std::fmt;
@@ -283,6 +284,7 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
         state: &PersistentState,
     ) -> Result<(), PersistentStateError> {
         let address = self.unused_memory_start();
+        print(&format!("write: unused memory start: {:?}", address));
 
         let mut writer =
             StableWriter::with_memory(CanisterStableMemory::default(), address as usize);
@@ -299,11 +301,21 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
             assert!(address_page + max_wasm_pages_affected >= stable64_size());
         }
 
+        print(&format!(
+            "write: persistent state size: {:?}",
+            &encoded_state.len()
+        ));
+        print(&format!(
+            "write: persistent state: {:?}",
+            hex::encode(&encoded_state)
+        ));
         writer
             .write(&PERSISTENT_STATE_MAGIC)
             .map_err(|err| PersistentStateError::StableMemoryError(err))?;
+        let length = (encoded_state.len() as u64).to_le_bytes();
+        print(&format!("write: length: {:?}", length.clone()));
         writer
-            .write(&encoded_state.len().to_le_bytes())
+            .write(&length)
             .map_err(|err| PersistentStateError::StableMemoryError(err))?;
         writer
             .write(&encoded_state)
@@ -313,6 +325,7 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
 
     pub fn read_persistent_state(&self) -> Result<PersistentState, PersistentStateError> {
         let address = self.unused_memory_start();
+        print(&format!("read: unused memory start: {:?}", address));
         if stable64_size() * WASM_PAGE_SIZE < address {
             // Handle fresh installs of II: stable memory size is 0 thus the address points out of bounds
             return Err(PersistentStateError::NotFound);
@@ -336,11 +349,16 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
             .map_err(|err| PersistentStateError::StableMemoryError(err))?;
 
         let size = u64::from_le_bytes(size_buf);
+        print(&format!("read: persistent state size: {:?}", size));
         let mut data_buf = Vec::with_capacity(size as usize);
         reader
             .read(data_buf.as_mut_slice())
             .map_err(|err| PersistentStateError::StableMemoryError(err))?;
 
+        print(&format!(
+            "read: persistent state {:?}",
+            hex::encode(data_buf.clone())
+        ));
         candid::decode_one(&data_buf).map_err(|err| PersistentStateError::CandidError(err))
     }
 }
