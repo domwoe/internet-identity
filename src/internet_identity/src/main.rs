@@ -977,33 +977,35 @@ async fn upgrade_archive(wasm: ByteBuf) -> UpgradeArchiveResult {
     });
 
     match archive_state {
-        ArchiveState::NotCreated => {
-            let result = archive::create_archive().await;
-
-            match result {
-                Err(e) => {
-                    STATE.with(|s| {
-                        // unlock archive creation again
-                        s.persistent_state.borrow_mut().archive_info = ArchiveState::NotCreated
-                    });
-                    return CreationFailed(format!("failed to create archive: {:?}", e));
-                }
-                Ok(data) => {
-                    let archive_canister_id = data.archive_canister;
-                    STATE.with(|s| {
-                        // safe archive info permanently
-                        s.persistent_state.borrow_mut().archive_info = ArchiveState::Created(data)
-                    });
-                    match archive::install_archive(archive_canister_id, wasm.into_vec()).await {
-                        Ok(_) => UpgradeArchiveResult::Success,
-                        Err(err) => UpgradeFailed(err),
-                    }
-                }
-            }
-        }
+        ArchiveState::NotCreated => create_and_install_archive(&wasm).await,
         ArchiveState::CreationInProgress => UpgradeArchiveResult::CreationInProgress,
         ArchiveState::Created(data) => {
             match archive::install_archive(data.archive_canister, wasm.into_vec()).await {
+                Ok(_) => UpgradeArchiveResult::Success,
+                Err(err) => UpgradeFailed(err),
+            }
+        }
+    }
+}
+
+async fn create_and_install_archive(wasm: &ByteBuf) -> UpgradeArchiveResult {
+    let result = archive::create_archive().await;
+
+    match result {
+        Err(e) => {
+            STATE.with(|s| {
+                // unlock archive creation again
+                s.persistent_state.borrow_mut().archive_info = ArchiveState::NotCreated
+            });
+            return CreationFailed(format!("failed to create archive: {:?}", e));
+        }
+        Ok(data) => {
+            let archive_canister_id = data.archive_canister;
+            STATE.with(|s| {
+                // safe archive info permanently
+                s.persistent_state.borrow_mut().archive_info = ArchiveState::Created(data)
+            });
+            match archive::install_archive(archive_canister_id, wasm.into_vec()).await {
                 Ok(_) => UpgradeArchiveResult::Success,
                 Err(err) => UpgradeFailed(err),
             }
