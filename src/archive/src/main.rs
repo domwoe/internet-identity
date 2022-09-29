@@ -1,7 +1,7 @@
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::time;
-use ic_cdk::{caller, trap};
+use ic_cdk::{caller, print, trap};
 use ic_cdk_macros::{init, post_upgrade, query, update};
 use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemory};
 use ic_stable_structures::{
@@ -150,12 +150,12 @@ impl Storable for UserIndexKey {
 
 #[update]
 fn write_entry(user_number: UserNumber, timestamp: Timestamp, entry: ByteBuf) {
+    print("write received");
     with_config(|config| {
         if config.ii_canister != caller() {
-            trap(&format!(
-                "Only {} is allowed to write entries.",
-                config.ii_canister
-            ))
+            let msg = format!("Only {} is allowed to write entries.", config.ii_canister);
+            print(&msg);
+            trap(&msg);
         }
     });
     let idx = with_log(|log| {

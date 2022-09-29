@@ -5,7 +5,7 @@ use ic_cdk::api::management_canister::main::{
     canister_status, create_canister, install_code, CanisterIdRecord, CanisterInstallMode,
     CreateCanisterArgument, InstallCodeArgument,
 };
-use ic_cdk::{id, notify, print};
+use ic_cdk::{id, notify};
 use internet_identity_interface::{ArchiveInit, LogEntry};
 use lazy_static::lazy_static;
 use sha2::Digest;
@@ -15,7 +15,7 @@ use CanisterInstallMode::Upgrade;
 
 lazy_static! {
     static ref ARCHIVE_HASH: [u8; 32] =
-        hex::decode("2e15c2b8ada8d154e86439debe31cab4c4bea6c3e4eae1af6b0a2570d1d61309")
+        hex::decode("2379311eac859e7a54556dbbe0b2d95d94223fe83f1b628c2e52e0f83e1e081e")
             .unwrap()
             .try_into()
             .unwrap();
