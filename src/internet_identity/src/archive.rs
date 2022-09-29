@@ -1,5 +1,5 @@
-use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::api::call::CallResult;
+use candid::{encode_args, encode_one, CandidType, Deserialize, Principal};
+use ic_cdk::api::call::{call_raw, CallResult};
 use ic_cdk::api::management_canister::main::CanisterInstallMode::Install;
 use ic_cdk::api::management_canister::main::{
     canister_status, create_canister, install_code, CanisterIdRecord, CanisterInstallMode,
@@ -47,7 +47,6 @@ pub struct ArchiveData {
 
 pub async fn create_archive() -> CallResult<ArchiveData> {
     let (result,) = create_canister(CreateCanisterArgument { settings: None }).await?;
-    print(&format!("archive created {:?}", result));
     Ok(ArchiveData {
         sequence_number: 0,
         archive_canister: result.canister_id,
@@ -109,6 +108,12 @@ fn verify_wasm_hash(wasm_module: &Vec<u8>) -> Result<(), String> {
     let mut hasher = Sha256::new();
     hasher.update(&wasm_module);
     let wasm_hash: [u8; 32] = hasher.finalize().into();
+
+    print(format!("hash check supplied: {}", hex::encode(&wasm_hash)));
+    print(format!(
+        "hash check expected: {}",
+        hex::encode(ARCHIVE_HASH.clone())
+    ));
 
     if wasm_hash != ARCHIVE_HASH.clone() {
         return Err("invalid wasm module".to_string());
