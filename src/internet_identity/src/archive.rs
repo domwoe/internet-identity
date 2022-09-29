@@ -97,11 +97,17 @@ pub async fn install_archive(
     .map_err(|err| format!("failed to install archive canister: {:?}", err))
 }
 
-pub fn write_entry(archive_canister: Principal, operation: LogEntry) {
-    let encoded_entry = candid::encode_one(operation).expect("failed to encode log entry");
+pub fn write_entry(archive_canister: Principal, entry: LogEntry) {
+    let user_number = entry.user_number;
+    let timestamp = entry.timestamp;
+    let encoded_entry = candid::encode_one(entry).expect("failed to encode log entry");
     // Notify only fails if the message cannot be enqueued.
-    notify(archive_canister, "write_entry", (encoded_entry,))
-        .expect("failed to send log entry notification");
+    let () = notify(
+        archive_canister,
+        "write_entry",
+        (user_number, timestamp, encoded_entry),
+    )
+    .expect("failed to send log entry notification");
 }
 
 fn verify_wasm_hash(wasm_module: &Vec<u8>) -> Result<(), String> {
