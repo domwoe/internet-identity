@@ -135,6 +135,7 @@ mod storage;
 struct InternetIdentityStats {
     assigned_user_number_range: (UserNumber, UserNumber),
     users_registered: u64,
+    archive: Option<Principal>,
 }
 
 type AssetHashes = RbTree<&'static str, Hash>;
@@ -1059,9 +1060,16 @@ fn http_request(req: HttpRequest) -> HttpResponse {
 fn stats() -> InternetIdentityStats {
     STATE.with(|state| {
         let storage = state.storage.borrow();
+        let archive =
+            if let ArchiveState::Created(data) = &state.persistent_state.borrow().archive_info {
+                Some(data.archive_canister)
+            } else {
+                None
+            };
         InternetIdentityStats {
             assigned_user_number_range: storage.assigned_user_number_range(),
             users_registered: storage.user_count() as u64,
+            archive,
         }
     })
 }

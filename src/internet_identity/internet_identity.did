@@ -122,6 +122,7 @@ type GetDelegationResponse = variant {
 type InternetIdentityStats = record {
   users_registered: nat64;
   assigned_user_number_range: record { nat64; nat64; };
+  archive: opt principal;
 };
 
 type InternetIdentityInit = record {
