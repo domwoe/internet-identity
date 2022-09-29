@@ -145,6 +145,17 @@ type IdentityAnchorInfo = record {
     device_registration: opt DeviceRegistrationInfo;
 };
 
+type DeployArchiveResult = variant {
+  // The archive was deployed successfully and the supplied wasm module has been installed.
+  success;
+  // Initial archive creation is already in progress.
+  creation_in_progress;
+  // Archive does not exist and creation of a new one failed.
+  creation_failed: text;
+  // Archive exists and upgrade to the supplied wasm module failed.
+  upgrade_failed: text;
+};
+
 service : (opt InternetIdentityInit) -> {
   init_salt: () -> ();
   create_challenge : () -> (Challenge);
@@ -169,5 +180,5 @@ service : (opt InternetIdentityInit) -> {
 
   http_request: (request: HttpRequest) -> (HttpResponse) query;
 
-  upgrade_archive: (wasm: blob) -> ();
+  deploy_archive: (wasm: blob) -> (DeployArchiveResult);
 }

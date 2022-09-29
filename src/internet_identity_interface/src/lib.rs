@@ -262,3 +262,15 @@ pub struct ArchiveInit {
     pub ii_canister: Principal,
     pub max_entries_per_call: u16,
 }
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub enum DeployArchiveResult {
+    #[serde(rename = "success")]
+    Success,
+    #[serde(rename = "creation_in_progress")]
+    CreationInProgress,
+    #[serde(rename = "creation_failed")]
+    CreationFailed(String),
+    #[serde(rename = "upgrade_failed")]
+    UpgradeFailed(String),
+}

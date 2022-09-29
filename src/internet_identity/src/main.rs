@@ -31,7 +31,7 @@ const fn secs_to_nanos(secs: u64) -> u64 {
 }
 
 use crate::archive::{ArchiveData, ArchiveState};
-use crate::UpgradeArchiveResult::{CreationFailed, UpgradeFailed};
+use crate::DeployArchiveResult::{CreationFailed, UpgradeFailed};
 #[cfg(not(feature = "dummy_captcha"))]
 use captcha::filters::Wave;
 
@@ -957,16 +957,8 @@ fn stats() -> InternetIdentityStats {
     })
 }
 
-#[derive(Clone, Debug, CandidType, Deserialize)]
-pub enum UpgradeArchiveResult {
-    Success,
-    CreationInProgress,
-    CreationFailed(String),
-    UpgradeFailed(String),
-}
-
 #[update]
-async fn upgrade_archive(wasm: ByteBuf) -> UpgradeArchiveResult {
+async fn deploy_archive(wasm: ByteBuf) -> DeployArchiveResult {
     let archive_state = STATE.with(|s| match s.persistent_state.borrow().archive_info.clone() {
         ArchiveState::NotCreated => {
             // lock archive creation because of async operation
@@ -978,17 +970,17 @@ async fn upgrade_archive(wasm: ByteBuf) -> UpgradeArchiveResult {
 
     match archive_state {
         ArchiveState::NotCreated => create_and_install_archive(&wasm).await,
-        ArchiveState::CreationInProgress => UpgradeArchiveResult::CreationInProgress,
+        ArchiveState::CreationInProgress => DeployArchiveResult::CreationInProgress,
         ArchiveState::Created(data) => {
             match archive::install_archive(data.archive_canister, wasm.into_vec()).await {
-                Ok(_) => UpgradeArchiveResult::Success,
+                Ok(_) => DeployArchiveResult::Success,
                 Err(err) => UpgradeFailed(err),
             }
         }
     }
 }
 
-async fn create_and_install_archive(wasm: &ByteBuf) -> UpgradeArchiveResult {
+async fn create_and_install_archive(wasm: &ByteBuf) -> DeployArchiveResult {
     let result = archive::create_archive().await;
 
     match result {
@@ -1006,7 +998,7 @@ async fn create_and_install_archive(wasm: &ByteBuf) -> UpgradeArchiveResult {
                 s.persistent_state.borrow_mut().archive_info = ArchiveState::Created(data)
             });
             match archive::install_archive(archive_canister_id, wasm.into_vec()).await {
-                Ok(_) => UpgradeArchiveResult::Success,
+                Ok(_) => DeployArchiveResult::Success,
                 Err(err) => UpgradeFailed(err),
             }
         }
