@@ -462,11 +462,11 @@ async fn register(device_data: DeviceData, challenge_result: ChallengeAttempt) -
 
     check_device(&device_data, &vec![]);
 
-    if caller() != Principal::self_authenticating(device_data.pubkey.clone()) {
+    let caller = caller();
+    if caller != Principal::self_authenticating(device_data.pubkey.clone()) {
         trap(&format!(
             "{} could not be authenticated against {:?}",
-            caller(),
-            device_data.pubkey
+            caller, device_data.pubkey
         ));
     }
 
@@ -500,7 +500,7 @@ async fn register(device_data: DeviceData, challenge_result: ChallengeAttempt) -
                         initial_device: DeviceDataWithoutAlias::from(device_data),
                     },
                     timestamp: time(),
-                    caller: caller(),
+                    caller,
                     sequence_number,
                 },
             )

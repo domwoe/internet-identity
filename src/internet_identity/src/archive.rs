@@ -1,5 +1,5 @@
-use candid::{encode_args, encode_one, CandidType, Deserialize, Principal};
-use ic_cdk::api::call::{call_raw, CallResult};
+use candid::{CandidType, Deserialize, Principal};
+use ic_cdk::api::call::CallResult;
 use ic_cdk::api::management_canister::main::CanisterInstallMode::Install;
 use ic_cdk::api::management_canister::main::{
     canister_status, create_canister, install_code, CanisterIdRecord, CanisterInstallMode,
@@ -108,12 +108,6 @@ fn verify_wasm_hash(wasm_module: &Vec<u8>) -> Result<(), String> {
     let mut hasher = Sha256::new();
     hasher.update(&wasm_module);
     let wasm_hash: [u8; 32] = hasher.finalize().into();
-
-    print(format!("hash check supplied: {}", hex::encode(&wasm_hash)));
-    print(format!(
-        "hash check expected: {}",
-        hex::encode(ARCHIVE_HASH.clone())
-    ));
 
     if wasm_hash != ARCHIVE_HASH.clone() {
         return Err("invalid wasm module".to_string());
