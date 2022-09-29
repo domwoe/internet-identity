@@ -1076,13 +1076,13 @@ fn stats() -> InternetIdentityStats {
 
 #[update]
 async fn deploy_archive(wasm: ByteBuf) -> DeployArchiveResult {
-    let archive_state = STATE.with(|s| match s.persistent_state.borrow().archive_info.clone() {
-        ArchiveState::NotCreated => {
+    let archive_state = STATE.with(|s| {
+        let archive_state = s.persistent_state.borrow().archive_info.clone();
+        if archive_state == ArchiveState::NotCreated {
             // lock archive creation because of async operation
             s.persistent_state.borrow_mut().archive_info = ArchiveState::CreationInProgress;
-            ArchiveState::NotCreated
         }
-        state => state,
+        archive_state
     });
 
     match archive_state {

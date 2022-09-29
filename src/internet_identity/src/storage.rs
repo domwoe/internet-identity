@@ -350,7 +350,8 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned> Storage<T> {
 
         let size = u64::from_le_bytes(size_buf);
         print(&format!("read: persistent state size: {:?}", size));
-        let mut data_buf = Vec::with_capacity(size as usize);
+        let mut data_buf = Vec::new();
+        data_buf.resize(size as usize, 0);
         reader
             .read(data_buf.as_mut_slice())
             .map_err(|err| PersistentStateError::StableMemoryError(err))?;
