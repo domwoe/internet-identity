@@ -1,6 +1,8 @@
+use crate::archive::{ArchiveData, ArchiveState};
 use crate::assets::init_assets;
 use crate::storage::PersistentStateError;
 use crate::AddTentativeDeviceResponse::{AddedTentatively, AnotherDeviceTentativelyAdded};
+use crate::DeployArchiveResult::{CreationFailed, UpgradeFailed};
 use crate::RegistrationState::{DeviceRegistrationModeActive, DeviceTentativelyAdded};
 use crate::VerifyTentativeDeviceResponse::{NoDeviceToVerify, WrongCode};
 use assets::ContentType;
@@ -30,9 +32,6 @@ mod http;
 const fn secs_to_nanos(secs: u64) -> u64 {
     secs * 1_000_000_000
 }
-
-use crate::archive::{calculate_device_diff, ArchiveData, ArchiveState};
-use crate::DeployArchiveResult::{CreationFailed, UpgradeFailed};
 #[cfg(not(feature = "dummy_captcha"))]
 use captcha::filters::Wave;
 
@@ -98,6 +97,36 @@ impl From<DeviceDataInternal> for DeviceData {
                 .protection
                 .unwrap_or(DeviceProtection::Unprotected),
         }
+    }
+}
+
+fn calculate_device_diff(old: &DeviceDataInternal, new: &DeviceDataInternal) -> DeviceDataUpdate {
+    DeviceDataUpdate {
+        alias: if old.alias == new.alias {
+            None
+        } else {
+            Some(Hidden::HiddenForPrivacyReasons)
+        },
+        credential_id: if old.credential_id == new.credential_id {
+            None
+        } else {
+            new.credential_id.clone()
+        },
+        purpose: if old.purpose == new.purpose {
+            None
+        } else {
+            new.purpose.clone()
+        },
+        key_type: if old.key_type == new.key_type {
+            None
+        } else {
+            new.key_type.clone()
+        },
+        protection: if old.protection == new.protection {
+            None
+        } else {
+            new.protection.clone()
+        },
     }
 }
 
@@ -484,7 +513,7 @@ async fn register(device_data: DeviceData, challenge_result: ChallengeAttempt) -
 fn archive_and_next_seq_nr() -> Option<(Principal, u64)> {
     STATE.with(|s| {
         let mut persistent_state = s.persistent_state.borrow_mut();
-        if let ArchiveState::Created(ref mut data) = &persistent_state.archive_info {
+        if let ArchiveState::Created(ref mut data) = &mut persistent_state.archive_info {
             data.sequence_number += 1;
             Some((data.archive_canister, data.sequence_number))
         } else {
@@ -580,8 +609,9 @@ fn mutate_device_or_trap(
 
     match new_value {
         Some(device_data) => {
-            let diff = archive::calculate_device_diff(device, &device_data);
-            *device = device_data.into();
+            let internal_device = device_data.into();
+            let diff = calculate_device_diff(device, &internal_device);
+            *device = internal_device;
             Some(diff)
         }
         None => {
@@ -1050,7 +1080,7 @@ async fn deploy_archive(wasm: ByteBuf) -> DeployArchiveResult {
     });
 
     match archive_state {
-        ArchiveState::NotCreated => create_and_install_archive(&wasm).await,
+        ArchiveState::NotCreated => create_and_install_archive(wasm.into_vec()).await,
         ArchiveState::CreationInProgress => DeployArchiveResult::CreationInProgress,
         ArchiveState::Created(data) => {
             match archive::install_archive(data.archive_canister, wasm.into_vec()).await {
@@ -1061,7 +1091,7 @@ async fn deploy_archive(wasm: ByteBuf) -> DeployArchiveResult {
     }
 }
 
-async fn create_and_install_archive(wasm: &ByteBuf) -> DeployArchiveResult {
+async fn create_and_install_archive(wasm: Vec<u8>) -> DeployArchiveResult {
     let result = archive::create_archive().await;
 
     match result {
@@ -1078,7 +1108,7 @@ async fn create_and_install_archive(wasm: &ByteBuf) -> DeployArchiveResult {
                 // safe archive info permanently
                 s.persistent_state.borrow_mut().archive_info = ArchiveState::Created(data)
             });
-            match archive::install_archive(archive_canister_id, wasm.into_vec()).await {
+            match archive::install_archive(archive_canister_id, wasm).await {
                 Ok(_) => DeployArchiveResult::Success,
                 Err(err) => UpgradeFailed(err),
             }
