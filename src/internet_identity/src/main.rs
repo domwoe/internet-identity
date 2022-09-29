@@ -1,4 +1,4 @@
-use crate::archive::{ArchiveData, ArchiveState};
+use crate::archive::ArchiveState;
 use crate::assets::init_assets;
 use crate::storage::PersistentStateError;
 use crate::AddTentativeDeviceResponse::{AddedTentatively, AnotherDeviceTentativelyAdded};
@@ -7,7 +7,7 @@ use crate::RegistrationState::{DeviceRegistrationModeActive, DeviceTentativelyAd
 use crate::VerifyTentativeDeviceResponse::{NoDeviceToVerify, WrongCode};
 use assets::ContentType;
 use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::api::call::{call, CallResult};
+use ic_cdk::api::call::call;
 use ic_cdk::api::{caller, data_certificate, id, set_certified_data, time, trap};
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, query, update};
 use ic_certified_map::{AsHashTree, Hash, HashTree, RbTree};
@@ -15,11 +15,9 @@ use internet_identity::signature_map::SignatureMap;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
 use serde::Serialize;
 use serde_bytes::ByteBuf;
-use std::borrow::Borrow;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::fmt::format;
 use std::ops::Deref;
 use storage::{Salt, Storage};
 

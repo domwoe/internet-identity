@@ -1,15 +1,12 @@
-use crate::DeviceDataInternal;
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::call::CallResult;
 use ic_cdk::api::management_canister::main::CanisterInstallMode::Install;
 use ic_cdk::api::management_canister::main::{
     canister_status, create_canister, install_code, CanisterIdRecord, CanisterInstallMode,
-    CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
+    CreateCanisterArgument, InstallCodeArgument,
 };
-use ic_cdk::{call, id, notify};
-use internet_identity_interface::{
-    ArchiveInit, DeviceData, DeviceDataUpdate, DeviceProtection, Hidden, LogEntry,
-};
+use ic_cdk::{id, notify};
+use internet_identity_interface::{ArchiveInit, LogEntry};
 use lazy_static::lazy_static;
 use sha2::Digest;
 use sha2::Sha256;
