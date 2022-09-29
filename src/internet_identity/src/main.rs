@@ -13,6 +13,7 @@ use internet_identity::signature_map::SignatureMap;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
 use serde::Serialize;
 use serde_bytes::ByteBuf;
+use std::borrow::Borrow;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -30,7 +31,7 @@ const fn secs_to_nanos(secs: u64) -> u64 {
     secs * 1_000_000_000
 }
 
-use crate::archive::{ArchiveData, ArchiveState};
+use crate::archive::{calculate_device_diff, ArchiveData, ArchiveState};
 use crate::DeployArchiveResult::{CreationFailed, UpgradeFailed};
 #[cfg(not(feature = "dummy_captcha"))]
 use captcha::filters::Wave;
@@ -434,7 +435,7 @@ async fn register(device_data: DeviceData, challenge_result: ChallengeAttempt) -
     check_device(&device_data, &vec![]);
 
     if caller() != Principal::self_authenticating(device_data.pubkey.clone()) {
-        ic_cdk::trap(&format!(
+        trap(&format!(
             "{} could not be authenticated against {:?}",
             caller(),
             device_data.pubkey
@@ -443,7 +444,7 @@ async fn register(device_data: DeviceData, challenge_result: ChallengeAttempt) -
 
     ensure_salt_set().await;
 
-    STATE.with(|s| {
+    let response = STATE.with(|s| {
         prune_expired_signatures(&s.asset_hashes.borrow(), &mut s.sigs.borrow_mut());
 
         let mut store = s.storage.borrow_mut();
@@ -452,12 +453,42 @@ async fn register(device_data: DeviceData, challenge_result: ChallengeAttempt) -
                 write_anchor_data(
                     store.deref(),
                     user_number,
-                    vec![DeviceDataInternal::from(device_data)],
+                    vec![DeviceDataInternal::from(device_data.clone())],
                     s.usage_metrics.borrow_mut(),
                 );
                 RegisterResponse::Registered { user_number }
             }
             None => RegisterResponse::CanisterFull,
+        }
+    });
+
+    if let RegisterResponse::Registered { user_number } = response {
+        if let Some((archive, sequence_number)) = archive_and_next_seq_nr() {
+            archive::write_entry(
+                archive,
+                LogEntry {
+                    user_number,
+                    operation: OperationType::RegisterAnchor {
+                        initial_device: DeviceDataWithoutAlias::from(device_data),
+                    },
+                    timestamp: time(),
+                    caller: caller(),
+                    sequence_number,
+                },
+            )
+        }
+    }
+    response
+}
+
+fn archive_and_next_seq_nr() -> Option<(Principal, u64)> {
+    STATE.with(|s| {
+        let mut persistent_state = s.persistent_state.borrow_mut();
+        if let ArchiveState::Created(ref mut data) = &persistent_state.archive_info {
+            data.sequence_number += 1;
+            Some((data.archive_canister, data.sequence_number))
+        } else {
+            None
         }
     })
 }
@@ -494,7 +525,7 @@ async fn add(user_number: UserNumber, device_data: DeviceData) {
             ));
         }
 
-        entries.push(DeviceDataInternal::from(device_data));
+        entries.push(DeviceDataInternal::from(device_data.clone()));
         write_anchor_data(
             s.storage.borrow().deref(),
             user_number,
@@ -502,7 +533,22 @@ async fn add(user_number: UserNumber, device_data: DeviceData) {
             s.usage_metrics.borrow_mut(),
         );
         prune_expired_signatures(&s.asset_hashes.borrow(), &mut s.sigs.borrow_mut());
-    })
+    });
+
+    if let Some((archive, sequence_number)) = archive_and_next_seq_nr() {
+        archive::write_entry(
+            archive,
+            LogEntry {
+                user_number,
+                operation: OperationType::AddDevice {
+                    new_device: DeviceDataWithoutAlias::from(device_data),
+                },
+                timestamp: time(),
+                caller: caller(),
+                sequence_number,
+            },
+        )
+    }
 }
 
 /// Replace or remove an existing device.
@@ -510,9 +556,9 @@ async fn add(user_number: UserNumber, device_data: DeviceData) {
 /// NOTE: all mutable operations should call this function because it handles device protection
 fn mutate_device_or_trap(
     entries: &mut Vec<DeviceDataInternal>,
-    device_key: DeviceKey,
+    device_key: &DeviceKey,
     new_value: Option<DeviceData>,
-) {
+) -> Option<DeviceDataUpdate> {
     let index = match entries.iter().position(|e| e.pubkey == device_key) {
         None => trap("Could not find device to mutate, check device key"),
         Some(index) => index,
@@ -534,12 +580,15 @@ fn mutate_device_or_trap(
 
     match new_value {
         Some(device_data) => {
+            let diff = archive::calculate_device_diff(device, &device_data);
             *device = device_data.into();
+            Some(diff)
         }
         None => {
             // NOTE: we void the more efficient remove_swap to ensure device ordering
             // is not changed
             entries.remove(index);
+            None
         }
     }
 }
@@ -550,7 +599,7 @@ async fn update(user_number: UserNumber, device_key: DeviceKey, device_data: Dev
         trap("device key may not be updated");
     }
 
-    STATE.with(|s| {
+    let diff = STATE.with(|s| {
         let mut entries = s.storage.borrow().read(user_number).unwrap_or_else(|err| {
             trap(&format!(
                 "failed to read device data of user {}: {}",
@@ -561,7 +610,7 @@ async fn update(user_number: UserNumber, device_key: DeviceKey, device_data: Dev
         trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
         check_device(&device_data, &entries);
 
-        mutate_device_or_trap(&mut entries, device_key, Some(device_data));
+        let diff = mutate_device_or_trap(&mut entries, &device_key, Some(device_data));
 
         write_anchor_data(
             s.storage.borrow().deref(),
@@ -571,7 +620,24 @@ async fn update(user_number: UserNumber, device_key: DeviceKey, device_data: Dev
         );
 
         prune_expired_signatures(&s.asset_hashes.borrow(), &mut s.sigs.borrow_mut());
-    })
+        diff
+    });
+
+    if let Some((archive, sequence_number)) = archive_and_next_seq_nr() {
+        archive::write_entry(
+            archive,
+            LogEntry {
+                user_number,
+                operation: OperationType::UpdateDevice {
+                    updated_device: device_key,
+                    changed_data: diff.unwrap(),
+                },
+                timestamp: time(),
+                caller: caller(),
+                sequence_number,
+            },
+        )
+    }
 }
 
 #[update]
@@ -589,14 +655,29 @@ async fn remove(user_number: UserNumber, device_key: DeviceKey) {
 
         trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
 
-        mutate_device_or_trap(&mut entries, device_key, None);
+        mutate_device_or_trap(&mut entries, &device_key, None);
         write_anchor_data(
             s.storage.borrow().deref(),
             user_number,
             entries,
             s.usage_metrics.borrow_mut(),
         );
-    })
+    });
+
+    if let Some((archive, sequence_number)) = archive_and_next_seq_nr() {
+        archive::write_entry(
+            archive,
+            LogEntry {
+                user_number,
+                operation: OperationType::RemoveDevice {
+                    removed_device: device_key,
+                },
+                timestamp: time(),
+                caller: caller(),
+                sequence_number,
+            },
+        )
+    }
 }
 
 /// Writes the supplied entries to stable memory and updates the anchor operation metric.

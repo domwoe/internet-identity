@@ -213,6 +213,18 @@ pub struct DeviceDataWithoutAlias {
     pub protection: DeviceProtection,
 }
 
+impl From<DeviceData> for DeviceDataWithoutAlias {
+    fn from(device_data: DeviceData) -> Self {
+        Self {
+            pubkey: device_data.pubkey,
+            credential_id: device_data.credential_id,
+            purpose: device_data.purpose,
+            key_type: device_data.key_type,
+            protection: device_data.protection,
+        }
+    }
+}
+
 // If present, the attribute has been changed to the value given.
 // Does not include the pubkey because it cannot be changed.
 #[derive(Eq, PartialEq, Clone, Debug, CandidType, Deserialize)]
