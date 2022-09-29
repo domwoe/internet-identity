@@ -120,24 +120,6 @@ fn verify_wasm_hash(wasm_module: &Vec<u8>) -> Result<(), String> {
 }
 
 pub fn calculate_device_diff(old: &DeviceDataInternal, new: &DeviceData) -> DeviceDataUpdate {
-    let new_protection = new.protection.clone();
-    let protection_diff = match old.protection {
-        None => {
-            if new_protection == DeviceProtection::Unprotected {
-                None
-            } else {
-                Some(new_protection)
-            }
-        }
-        Some(ref old_protection) => {
-            if old_protection == new_protection {
-                None
-            } else {
-                Some(new_protection)
-            }
-        }
-    };
-
     DeviceDataUpdate {
         alias: if old.alias == new.alias {
             None
@@ -159,6 +141,21 @@ pub fn calculate_device_diff(old: &DeviceDataInternal, new: &DeviceData) -> Devi
         } else {
             new.key_type.clone()
         },
-        protection: protection_diff,
+        protection: diff_optional_value(
+            &old.protection,
+            &new_protection,
+            Some(DeviceProtection::Unprotected),
+        ),
     }
+}
+
+fn diff_optional_value<T: Eq + Clone>(old: &Option<T>, new: &T, default: Option<T>) -> Option<T> {
+    let has_diff = old
+        .map(|val| val != new)
+        .unwrap_or(default.map(|val| val != new).unwrap_or(true));
+
+    if has_diff {
+        return Some(new.clone());
+    }
+    None
 }
