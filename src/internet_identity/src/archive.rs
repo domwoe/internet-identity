@@ -5,8 +5,9 @@ use ic_cdk::api::management_canister::main::{
     canister_status, create_canister, install_code, CanisterIdRecord, CanisterInstallMode,
     CanisterStatusResponse, CreateCanisterArgument, InstallCodeArgument,
 };
-use ic_cdk::{call, id};
-use internet_identity_interface::ArchiveInit;
+use ic_cdk::{call, id, notify};
+use ic_types::CanisterId;
+use internet_identity_interface::{ArchiveInit, LogEntry};
 use lazy_static::lazy_static;
 use sha2::Digest;
 use sha2::Sha256;
@@ -96,6 +97,13 @@ pub async fn install_archive(
     })
     .await
     .map_err(|err| format!("failed to install archive canister: {:?}", err))
+}
+
+pub fn write_entry(archive_canister: Principal, operation: LogEntry) {
+    let encoded_entry = candid::encode_one(operation).expect("failed to encode log entry");
+    // Notify only fails if the message cannot be enqueued.
+    notify(archive_canister, "write_entry", encoded_entry)
+        .expect("failed to send log entry notification");
 }
 
 fn verify_wasm_hash(wasm_module: &Vec<u8>) -> Result<(), String> {
