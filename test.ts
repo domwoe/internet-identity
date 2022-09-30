@@ -101,4 +101,4 @@ async function main() {
   await withChrome(takeShowcaseScreenshots);
 }
 
-// main();
+main();
