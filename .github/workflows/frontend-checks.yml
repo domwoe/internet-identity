@@ -34,7 +34,7 @@ jobs:
           while ! nc -z localhost 8080; do
             sleep 0.1 # wait for 1/10 of the second before check again
           done
-          SCREENSHOTS_TYPE=${{ matrix.device }} npm run screenshots # TODO:add device here
+          SCREENSHOTS_DIR="./screenshots/${{ matrix.device}}" SCREENSHOTS_TYPE=${{ matrix.device }} npm run screenshots # TODO:add device here
           kill "$showcase_pid"
 
       - run: |

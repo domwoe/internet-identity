@@ -18,7 +18,7 @@ async function withChrome<T>(
   } = (() => {
     switch (foo) {
       case "mobile":
-        return { windowSize: "200x300", deviceName: "iPhone SE" };
+        return { windowSize: "360,667", deviceName: "iPhone SE" };
         break;
       case undefined:
         return {};
