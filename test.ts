@@ -9,7 +9,10 @@ async function withChrome<T>(
   // Screenshot image dimension, if specified
   const foo = process.env["SCREENSHOTS_TYPE"];
 
-  const {windowSize, deviceName}: {
+  const {
+    windowSize,
+    deviceName,
+  }: {
     windowSize?: string;
     deviceName?: string;
   } = (() => {
@@ -36,9 +39,11 @@ async function withChrome<T>(
         args: [
           "headless",
           "disable-gpu",
-          ...(windowSize !== undefined ? [`--window-size=${windowSize}`] : [])
+          ...(windowSize !== undefined ? [`--window-size=${windowSize}`] : []),
         ],
-        ...(deviceName !== undefined ? { mobileEmulation: { deviceName } } : {})
+        ...(deviceName !== undefined
+          ? { mobileEmulation: { deviceName } }
+          : {}),
       },
     },
   });
