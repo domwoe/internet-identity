@@ -7,7 +7,27 @@ async function withChrome<T>(
   cb: (browser: WebdriverIO.Browser) => T
 ): Promise<T> {
   // Screenshot image dimension, if specified
-  const dim = process.env["SCREENSHOTS_DIMENSION"];
+  const foo = process.env["SCREENSHOTS_TYPE"];
+
+  const {windowSize, deviceName}: {
+    windowSize?: string;
+    deviceName?: string;
+  } = (() => {
+    switch (foo) {
+      case "mobile":
+        return { windowSize: "200x300", deviceName: "iPhone SE" };
+        break;
+      case undefined:
+        return {};
+        break;
+      case "desktop":
+        return {};
+        break;
+      default:
+        throw Error("Unknown foo bar: " + foo);
+        break;
+    }
+  })();
 
   const browser = await remote({
     capabilities: {
@@ -16,11 +36,9 @@ async function withChrome<T>(
         args: [
           "headless",
           "disable-gpu",
-          //          ...(dim !== undefined ? [`--window-size=${dim}`] : []),
+          ...(windowSize !== undefined ? [`--window-size=${windowSize}`] : [])
         ],
-        mobileEmulation: {
-          deviceMetrics: { height: 667, width: 375, pixelRatio: 3 },
-        },
+        ...(deviceName !== undefined ? { mobileEmulation: { deviceName } } : {})
       },
     },
   });
@@ -78,4 +96,4 @@ async function main() {
   await withChrome(takeShowcaseScreenshots);
 }
 
-main();
+// main();
