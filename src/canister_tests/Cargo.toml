@@ -17,7 +17,7 @@ sha2 = "0.10"
 internet_identity_interface = { path = "../internet_identity_interface" }
 
 # All IC deps
-candid = "0.7"
+candid = "0.8"
 ic-types = "*"
 ic-certification = "*"
 ic-crypto-internal-basic-sig-iccsa = "*"
