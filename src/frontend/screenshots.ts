@@ -1,5 +1,6 @@
 import { remote } from "webdriverio";
 import { existsSync, mkdirSync } from "fs";
+import { ChromeOptions } from "@wdio/types/build/Capabilities";
 
 /** This executable takes screenshots of every page in the showcase.
  * This function expects the showcase to be running on 'http://localhost:8080'. Everything
@@ -53,19 +54,17 @@ async function withChrome<T>(
   cb: (browser: WebdriverIO.Browser) => T
 ): Promise<T> {
   // Screenshot image dimension, if specified
-  const { windowSize, mobileEmulation } = readScreenshotsConfig();
+  const { mobileEmulation } = readScreenshotsConfig();
+
+  const chromeOptions: ChromeOptions = {
+    args: ["headless", "disable-gpu"],
+    mobileEmulation,
+  };
 
   const browser = await remote({
     capabilities: {
       browserName: "chrome",
-      "goog:chromeOptions": {
-        args: [
-          "headless",
-          "disable-gpu",
-          ...(windowSize !== undefined ? [`--window-size=${windowSize}`] : []),
-        ],
-        mobileEmulation,
-      },
+      "goog:chromeOptions": chromeOptions,
     },
   });
 
@@ -109,11 +108,11 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
  * (either 'mobile' or 'desktop') and returns the appropriate device
  * name and/or window size.
  *
- * NOTE: the window size is only necessary due to a bug in webdriverio:
+ * NOTE: deviceMetrics are necessary due to a bug in webdriverio
+ * (otherwise just use 'deviceName'):
  * * https://github.com/webdriverio/webdriverio/issues/8903
  */
 function readScreenshotsConfig(): {
-  windowSize?: string;
   mobileEmulation?: {
     deviceMetrics: { width: number; height: number };
   };
