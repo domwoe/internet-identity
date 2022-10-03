@@ -1,6 +1,7 @@
 import { remote } from "webdriverio";
 import { spawn } from "child_process";
 import { get } from "http";
+import { existsSync, mkdirSync } from "fs";
 
 /** Create a chrome instance and run callback, deleting session afterwards */
 async function withChrome<T>(
@@ -77,6 +78,9 @@ async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
   );
 
   const screenshotsDir = process.env["SCREENSHOTS_DIR"] ?? "./screenshots";
+  if (!existsSync(screenshotsDir)) {
+    mkdirSync(screenshotsDir, { recursive: true });
+  }
 
   // Ensure blinking cursors don't mess up screenshots
   for (const pageName of pageNames) {
