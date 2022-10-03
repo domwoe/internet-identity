@@ -64,7 +64,7 @@ async function withChrome<T>(
           "disable-gpu",
           ...(windowSize !== undefined ? [`--window-size=${windowSize}`] : []),
         ],
-        ...(mobileEmulation ?? {}),
+        ...(mobileEmulation !== undefined ? { mobileEmulation } : {}),
       },
     },
   });
