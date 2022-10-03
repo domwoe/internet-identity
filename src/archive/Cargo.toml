@@ -11,7 +11,7 @@ edition = "2021"
 internet_identity_interface = { path = "../internet_identity_interface" }
 metrics_encoder = { path = "../metrics_encoder" }
 # ic dependencies
-candid = "0.8"
+candid = "0.7"
 ic-cdk = "0.5"
 ic-cdk-macros = "0.5"
 ic-stable-structures = "0.1"
