@@ -337,15 +337,6 @@ export function originToRelyingPartyId(origin: string): string {
   return origin.replace(/https?:\/\/([.\w]+).*/, "$1");
 }
 
-// 'Screenshots' objects are used to make sure all screenshots end up in the
-// same directory, each with a different (increasing) number prefixed in the
-// filename.
-export class Screenshots {
-  private count = 0;
-
-  constructor(private directory: string, private suffix: string) {}
-}
-
 // Inspired by https://stackoverflow.com/a/66919695/946226
 export async function waitForFonts(
   browser: WebdriverIO.Browser
