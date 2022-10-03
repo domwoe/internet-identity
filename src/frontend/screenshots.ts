@@ -98,6 +98,8 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
     style.appendChild(document.createTextNode(notransition));
     document.getElementsByTagName("head")[0].appendChild(style);
   });
+
+  await browser.pause(1000);
 }
 
 /**
