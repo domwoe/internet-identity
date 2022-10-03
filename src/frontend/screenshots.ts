@@ -86,7 +86,7 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
 
   await browser.execute(() => {
     const notransition = `
-* {
+*, *::before, *::after {
     -o-transition-property: none !important;
     -moz-transition-property: none !important;
     -ms-transition-property: none !important;
@@ -95,9 +95,8 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
 }
         `;
     const style = document.createElement("style");
-    style.type = "text/css";
     style.appendChild(document.createTextNode(notransition));
-    document.getElementsByTagName("head")[0].appendChild(style);
+    document.querySelector("body").appendChild(style);
   });
 
   //await browser.pause(1000);
