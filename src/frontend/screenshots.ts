@@ -83,6 +83,21 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
       timeoutMsg: "Browser did not load after 10 seconds",
     }
   );
+
+  await browser.execute(() => {
+    const notransition = `
+            * {
+              -webkit-transition: none !important;
+              -moz-transition: none !important;
+              -o-transition: none !important;
+              transition: none !important;
+            }
+        `;
+    const style = document.createElement("style");
+    style.type = "text/css";
+    style.appendChild(document.createTextNode(notransition));
+    document.getElementsByTagName("head")[0].appendChild(style);
+  });
 }
 
 /**
