@@ -53,7 +53,7 @@ async function withChrome<T>(
   cb: (browser: WebdriverIO.Browser) => T
 ): Promise<T> {
   // Screenshot image dimension, if specified
-  const { windowSize, deviceName } = readScreenshotsConfig();
+  const { windowSize, mobileEmulation } = readScreenshotsConfig();
 
   const browser = await remote({
     capabilities: {
@@ -64,9 +64,7 @@ async function withChrome<T>(
           "disable-gpu",
           ...(windowSize !== undefined ? [`--window-size=${windowSize}`] : []),
         ],
-        ...(deviceName !== undefined
-          ? { mobileEmulation: { deviceName } }
-          : {}),
+        ...(mobileEmulation ?? {}),
       },
     },
   });
@@ -114,11 +112,23 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
  * NOTE: the window size is only necessary due to a bug in webdriverio:
  * * https://github.com/webdriverio/webdriverio/issues/8903
  */
-function readScreenshotsConfig(): { windowSize?: string; deviceName?: string } {
+function readScreenshotsConfig(): {
+  windowSize?: string;
+  mobileEmulation?: {
+    deviceMetrics: { width: number; height: number };
+    deviceName: string;
+  };
+} {
   const screenshotsType = process.env["SCREENSHOTS_TYPE"];
   switch (screenshotsType) {
     case "mobile":
-      return { windowSize: "360,667", deviceName: "iPhone SE" };
+      return {
+        windowSize: "360,667",
+        mobileEmulation: {
+          deviceName: "iPhone SE",
+          deviceMetrics: { width: 360, height: 667 },
+        },
+      };
       break;
     case undefined:
       return {};
