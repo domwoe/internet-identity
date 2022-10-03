@@ -64,7 +64,7 @@ async function withChrome<T>(
           "disable-gpu",
           ...(windowSize !== undefined ? [`--window-size=${windowSize}`] : []),
         ],
-        ...(mobileEmulation !== undefined ? { mobileEmulation } : {}),
+        mobileEmulation,
       },
     },
   });
@@ -116,7 +116,6 @@ function readScreenshotsConfig(): {
   windowSize?: string;
   mobileEmulation?: {
     deviceMetrics: { width: number; height: number };
-    deviceName: string;
   };
 } {
   const screenshotsType = process.env["SCREENSHOTS_TYPE"];
@@ -124,7 +123,6 @@ function readScreenshotsConfig(): {
     case "mobile":
       return {
         mobileEmulation: {
-          deviceName: "iPhone SE",
           deviceMetrics: { width: 360, height: 667 },
         },
       };
