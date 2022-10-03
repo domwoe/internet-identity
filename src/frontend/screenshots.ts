@@ -28,7 +28,6 @@ async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
 
   // Iterate the pages and screenshot them
   for (const pageName of pageNames) {
-
     // Skip the loader, because it's animated
     if (pageName === "loader") {
       continue;
@@ -87,13 +86,13 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
 }
 
 /**
-* Read the screenshots configuration based on 'SCREENSHOTS_TYPE'
-* (either 'mobile' or 'desktop') and returns the appropriate device
-* name and/or window size.
-*
-* NOTE: the window size is only necessary due to a bug in webdriverio:
-* * https://github.com/webdriverio/webdriverio/issues/8903
-*/
+ * Read the screenshots configuration based on 'SCREENSHOTS_TYPE'
+ * (either 'mobile' or 'desktop') and returns the appropriate device
+ * name and/or window size.
+ *
+ * NOTE: the window size is only necessary due to a bug in webdriverio:
+ * * https://github.com/webdriverio/webdriverio/issues/8903
+ */
 function readScreenshotsConfig(): { windowSize?: string; deviceName?: string } {
   const screenshotsType = process.env["SCREENSHOTS_TYPE"];
   switch (screenshotsType) {
