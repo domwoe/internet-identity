@@ -513,8 +513,9 @@ fn archive_and_next_seq_nr() -> Option<(Principal, u64)> {
     STATE.with(|s| {
         let mut persistent_state = s.persistent_state.borrow_mut();
         if let ArchiveState::Created(ref mut data) = &mut persistent_state.archive_info {
+            let result = Some((data.archive_canister, data.sequence_number));
             data.sequence_number += 1;
-            Some((data.archive_canister, data.sequence_number))
+            result
         } else {
             None
         }
