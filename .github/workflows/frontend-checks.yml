@@ -15,6 +15,7 @@ jobs:
       - name: Check formatting
         run: npm run format-check
 
+  # Job that starts the showcase and takes a screenshot of every page
   screenshots:
     runs-on: ubuntu-latest
     strategy:
@@ -31,10 +32,13 @@ jobs:
           npm run showcase&
           showcase_pid=$!
 
+          # every 100ms, check if localhost:8080 is reachable (i.e. devserver is up)
           while ! nc -z localhost 8080; do
-            sleep 0.1 # wait for 1/10 of the second before check again
+            sleep 0.1
           done
-          SCREENSHOTS_DIR="./screenshots/${{ matrix.device }}" SCREENSHOTS_TYPE=${{ matrix.device }} npm run screenshots
+          SCREENSHOTS_DIR="./screenshots/${{ matrix.device }}" \
+            SCREENSHOTS_TYPE=${{ matrix.device }} \
+            npm run screenshots
           kill "$showcase_pid"
 
       - run: |
@@ -47,8 +51,7 @@ jobs:
           name: e2e-screenshots-${{ matrix.device }}
           path: screenshots/${{ matrix.device }}/*.png
 
-  # This uploads the screenshots from both the (non-emulated) 'desktop' and
-  # 'mobile' runs.
+  # This uploads the screenshots from both 'desktop' and 'mobile'
   upload-screenshots:
     runs-on: ubuntu-latest
 
@@ -56,15 +59,12 @@ jobs:
     # loops), don't upload screenshots to main, and don't upload screenshots on release.
     if: ${{ ! contains(github.event.head_commit.message,'Selenium screenshots auto-update') && github.ref != 'refs/heads/main' && ! startsWith(github.ref, 'refs/tags/release-') }}
 
-    # Run after all the tests completed successfully (and have uploaded their
-    # artifacts)
     needs: screenshots
 
     steps:
       - uses: actions/checkout@v2
         with:
-          # set a PAT so that add-and-commit can trigger
-          # CI runs
+          # set a PAT so that add-and-commit can trigger CI runs
           token: ${{ secrets.GIX_BOT_PAT }}
 
       # Make sure old screenshots don't pollute the commit

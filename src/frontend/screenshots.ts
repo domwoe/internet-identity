@@ -1,6 +1,9 @@
 import { remote } from "webdriverio";
 import { existsSync, mkdirSync } from "fs";
 
+/** This executable takes screenshots of every page in the showcase.
+ * This function expects the showcase to be running on 'http://localhost:8080'. Everything
+ * else is automated. */
 async function main() {
   await withChrome(takeShowcaseScreenshots);
 }
@@ -76,14 +79,8 @@ async function withChrome<T>(
 /** Visit page and wait until loaded */
 async function visit(browser: WebdriverIO.Browser, url: string) {
   await browser.url(url);
-  await browser.waitUntil(
-    () => browser.execute(() => document.readyState === "complete"),
-    {
-      timeout: 10 * 1000,
-      timeoutMsg: "Browser did not load after 10 seconds",
-    }
-  );
 
+  /* Disable transitions to make sure we screenshot the (final) actual state */
   await browser.execute(() => {
     const notransition = `
 *, *::before, *::after {
@@ -98,6 +95,15 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
     style.appendChild(document.createTextNode(notransition));
     document.body.appendChild(style);
   });
+
+  /* Make sure everything has loaded */
+  await browser.waitUntil(
+    () => browser.execute(() => document.readyState === "complete"),
+    {
+      timeout: 10 * 1000,
+      timeoutMsg: "Browser did not load after 10 seconds",
+    }
+  );
 }
 
 /**
