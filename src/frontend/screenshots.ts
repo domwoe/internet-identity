@@ -86,12 +86,13 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
 
   await browser.execute(() => {
     const notransition = `
-            * {
-              -webkit-transition: none !important;
-              -moz-transition: none !important;
-              -o-transition: none !important;
-              transition: none !important;
-            }
+* {
+    -o-transition-property: none !important;
+    -moz-transition-property: none !important;
+    -ms-transition-property: none !important;
+    -webkit-transition-property: none !important;
+    transition-property: none !important;
+}
         `;
     const style = document.createElement("style");
     style.type = "text/css";
@@ -99,7 +100,7 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
     document.getElementsByTagName("head")[0].appendChild(style);
   });
 
-  await browser.pause(1000);
+  //await browser.pause(1000);
 }
 
 /**
