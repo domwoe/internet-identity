@@ -75,7 +75,8 @@ async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
     })
   );
 
-  const screenshotsDir = process.env["SCREENSHOTS_DIR"] ?? "./screenshots/custom";
+  const screenshotsDir =
+    process.env["SCREENSHOTS_DIR"] ?? "./screenshots/custom";
   if (!existsSync(screenshotsDir)) {
     mkdirSync(screenshotsDir, { recursive: true });
   }
