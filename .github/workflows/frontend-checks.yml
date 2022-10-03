@@ -39,13 +39,13 @@ jobs:
 
       - run: |
           echo "The following screenshots were created:"
-          shasum -a 256 screenshots/*.png | sort -k2 # sort by 2nd column (filename)
+          shasum -a 256 screenshots/${{ matrix.device }}/*.png | sort -k2 # sort by 2nd column (filename)
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v2
         with:
           name: e2e-screenshots-${{ matrix.device }}
-          path: screenshots/{{ matrix.device }}/*.png
+          path: screenshots/${{ matrix.device }}/*.png
 
   # This uploads the screenshots from both the (non-emulated) 'desktop' and
   # 'mobile' runs.
