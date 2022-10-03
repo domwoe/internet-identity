@@ -45,7 +45,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: e2e-screenshots-${{ matrix.device }}
-          path: screenshots/*.png
+          path: screenshots/{{ matrix.device }}/*.png
 
   # This uploads the screenshots from both the (non-emulated) 'desktop' and
   # 'mobile' runs.
