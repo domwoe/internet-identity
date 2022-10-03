@@ -96,7 +96,7 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
         `;
     const style = document.createElement("style");
     style.appendChild(document.createTextNode(notransition));
-    document.querySelector("body")?.appendChild(style);
+    document.body.appendChild(style);
   });
 }
 
