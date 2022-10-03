@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/setup-node
-      - run: rm -v -f screenshots/*.png
+      - run: rm -v -f screenshots/${{ matrix.device }}*.png
       - run: npm ci
       - run: |
           npm run showcase&
