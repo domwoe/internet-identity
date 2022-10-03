@@ -29,7 +29,6 @@ import {
   focusBrowser,
   getWebAuthnCredentials,
   originToRelyingPartyId,
-  removeFeaturesWarning,
   removeVirtualAuthenticator,
   runInBrowser,
   switchToPopup,

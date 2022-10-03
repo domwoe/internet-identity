@@ -132,4 +132,3 @@ jobs:
           add: screenshots
           default_author: github_actions
           message: "🤖 Selenium screenshots auto-update"
-

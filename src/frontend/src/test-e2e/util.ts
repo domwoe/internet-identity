@@ -399,21 +399,6 @@ export async function focusBrowser(
   await browser.switchToWindow((await browser.getWindowHandles())[0]);
 }
 
-export async function removeFeaturesWarning(
-  browser: WebdriverIO.Browser
-): Promise<void> {
-  const warningContainer = await browser.$(".features-warning-container");
-  await warningContainer.waitForDisplayed();
-  await browser.execute(() => {
-    const warningContainer = document.querySelector(
-      ".features-warning-container"
-    );
-    if (warningContainer) {
-      warningContainer.remove();
-    }
-  });
-}
-
 export async function waitToClose(browser: WebdriverIO.Browser): Promise<void> {
   await browser.waitUntil(
     async () => (await browser.getWindowHandles()).length == 1,
