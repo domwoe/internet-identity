@@ -9,4 +9,5 @@ npm run screenshots
 
 That will generate screenshots in `screenshots/custom/`.
 
-We commit these screenshots so that changes to the UI can be reviewed nicely in the PR.
+We commit these screenshots (generated on CI in `desktop/` and `mobile/`) so that changes 
+to the UI can be reviewed nicely in the PR.
