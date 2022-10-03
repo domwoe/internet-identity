@@ -74,21 +74,21 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: e2e-screenshots-desktop
-          path: screenshots
+          path: screenshots/desktop
 
       # Download the mobile screenshots artifacts
       - uses: actions/download-artifact@v2
         with:
           name: e2e-screenshots-mobile
-          path: screenshots
+          path: screenshots/mobile
 
       - run: |
           echo "The following screenshots were recovered:"
-          shasum -a 256 screenshots/*.png | sort -k2 # sort by 2nd column (filename)
+          shasum -a 256 screenshots/*/*.png | sort -k2 # sort by 2nd column (filename)
 
       - name: "Revert screenshot changes smaller than 8 pixels and less"
         run: |
-          for modified in $(git ls-files --modified ./screenshots)
+          for modified in $(git ls-files --modified ./screenshots/*/*.png)
           do
             echo found modified screenshot "$modified"
             if [ ! -f "$modified" ]; then
