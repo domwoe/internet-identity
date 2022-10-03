@@ -123,7 +123,6 @@ function readScreenshotsConfig(): {
   switch (screenshotsType) {
     case "mobile":
       return {
-        windowSize: "360,667",
         mobileEmulation: {
           deviceName: "iPhone SE",
           deviceMetrics: { width: 360, height: 667 },
