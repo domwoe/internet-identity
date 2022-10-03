@@ -1,6 +1,4 @@
 import { remote } from "webdriverio";
-import { spawn } from "child_process";
-import { get } from "http";
 import { existsSync, mkdirSync } from "fs";
 
 /** Create a chrome instance and run callback, deleting session afterwards */
