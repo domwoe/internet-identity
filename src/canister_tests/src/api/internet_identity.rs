@@ -1,10 +1,11 @@
 /** The functions here are derived (manually) from Internet Identity's Candid file */
+use crate::framework;
+use crate::framework::CallError;
 use candid::Principal;
-use canister_tests::framework;
-use framework::CallError;
 use ic_state_machine_tests::StateMachine;
 use ic_types::{CanisterId, PrincipalId};
 use internet_identity_interface as types;
+use serde_bytes::ByteBuf;
 
 /// A fake "health check" method that just checks the canister is alive a well.
 pub fn health_check(env: &StateMachine, canister_id: CanisterId) {
@@ -230,6 +231,21 @@ pub fn verify_tentative_device(
         (user_number, verification_code),
     )
     .map(|(x,)| x)
+}
+
+pub fn deploy_archive(
+    env: &StateMachine,
+    canister_id: CanisterId,
+    wasm: ByteBuf,
+) -> Result<types::DeployArchiveResult, CallError> {
+    framework::call_candid(env, canister_id, "deploy_archive", (wasm,)).map(|(x,)| x)
+}
+
+pub fn stats(
+    env: &StateMachine,
+    canister_id: CanisterId,
+) -> Result<types::InternetIdentityStats, CallError> {
+    framework::query_candid(env, canister_id, "stats", ()).map(|(x,)| x)
 }
 
 /// A "compatibility" module for the previous version of II to handle API changes.

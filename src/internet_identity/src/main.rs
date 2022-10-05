@@ -131,13 +131,6 @@ fn device_diff(old: &DeviceDataInternal, new: &DeviceDataInternal) -> DeviceData
 mod hash;
 mod storage;
 
-#[derive(Clone, Debug, CandidType, Deserialize)]
-struct InternetIdentityStats {
-    assigned_user_number_range: (UserNumber, UserNumber),
-    users_registered: u64,
-    archive: Option<Principal>,
-}
-
 type AssetHashes = RbTree<&'static str, Hash>;
 
 struct TentativeDeviceRegistration {

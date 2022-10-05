@@ -15,7 +15,7 @@ use CanisterInstallMode::Upgrade;
 
 lazy_static! {
     static ref ARCHIVE_HASH: [u8; 32] =
-        hex::decode("82c454dba26a52bfb60027cbc7020dd5b402c8d2ad853a9cab3bbe5eeadd088c")
+        hex::decode("ced27a8e458a41d49228020eb392aa89c5bc177afd8586f85a6038553b3ea60a")
             .unwrap()
             .try_into()
             .unwrap();

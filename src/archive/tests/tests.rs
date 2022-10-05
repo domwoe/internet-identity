@@ -1,3 +1,4 @@
+use canister_tests::api::archive as api;
 use canister_tests::framework;
 use canister_tests::framework::{
     assert_metric, expect_user_error_with_message, log_entry, log_entry_1, log_entry_2,
@@ -10,7 +11,6 @@ use internet_identity_interface::{Cursor, HttpRequest};
 use regex::Regex;
 use serde_bytes::ByteBuf;
 use std::time::{Duration, SystemTime};
-mod api;
 
 /// Verifies that the canister can be installed successfully.
 #[test]

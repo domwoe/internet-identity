@@ -27,18 +27,6 @@ pub struct DeviceData {
     pub protection: DeviceProtection,
 }
 
-impl From<DeviceData> for DeviceDataWithoutAlias {
-    fn from(device_data: DeviceData) -> Self {
-        Self {
-            pubkey: device_data.pubkey,
-            credential_id: device_data.credential_id,
-            purpose: device_data.purpose,
-            key_type: device_data.key_type,
-            protection: device_data.protection,
-        }
-    }
-}
-
 #[derive(Eq, PartialEq, Clone, Debug, CandidType, Deserialize)]
 pub enum Purpose {
     #[serde(rename = "recovery")]
@@ -187,6 +175,13 @@ pub struct InternetIdentityInit {
     pub assigned_user_number_range: (UserNumber, UserNumber),
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct InternetIdentityStats {
+    pub assigned_user_number_range: (UserNumber, UserNumber),
+    pub users_registered: u64,
+    pub archive: Option<Principal>,
+}
+
 // Archive specific types
 
 #[derive(Eq, PartialEq, Clone, Debug, CandidType, Deserialize)]
@@ -222,6 +217,18 @@ pub struct DeviceDataWithoutAlias {
     pub purpose: Purpose,
     pub key_type: KeyType,
     pub protection: DeviceProtection,
+}
+
+impl From<DeviceData> for DeviceDataWithoutAlias {
+    fn from(device_data: DeviceData) -> Self {
+        Self {
+            pubkey: device_data.pubkey,
+            credential_id: device_data.credential_id,
+            purpose: device_data.purpose,
+            key_type: device_data.key_type,
+            protection: device_data.protection,
+        }
+    }
 }
 
 // If present, the attribute has been changed to the value given.
