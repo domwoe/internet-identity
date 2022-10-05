@@ -71,10 +71,6 @@ const LOG_INDEX_MEMORY_ID: MemoryId = MemoryId::new(0);
 const LOG_DATA_MEMORY_ID: MemoryId = MemoryId::new(1);
 const ANCHOR_ACCESS_INDEX_MEMORY_ID: MemoryId = MemoryId::new(2);
 
-/// Length of the user index key. Changing this value requires a stable memory migration.
-/// This is a hardcoded constant so that the
-const ANCHOR_INDEX_KEY_LENGTH: usize = 24;
-
 thread_local! {
     /// Static configuration of the archive set by init() or post_upgrade().
     static CONFIG: RefCell<ConfigCell> = RefCell::new(ConfigCell::init(config_memory(), ConfigState::Uninitialized).expect("failed to initialize stable cell"));
@@ -89,7 +85,7 @@ thread_local! {
 
     /// Index to efficiently retrieve entries by anchor.
     static ANCHOR_INDEX: RefCell<AnchorIndex> = with_memory_manager(|memory_manager| {
-        RefCell::new(StableBTreeMap::init(memory_manager.get(ANCHOR_ACCESS_INDEX_MEMORY_ID), ANCHOR_INDEX_KEY_LENGTH as u32, 0))
+        RefCell::new(StableBTreeMap::init(memory_manager.get(ANCHOR_ACCESS_INDEX_MEMORY_ID), std::mem::size_of::<AnchorIndexKey>() as u32, 0))
     });
 }
 
