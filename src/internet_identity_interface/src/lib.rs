@@ -238,7 +238,7 @@ pub struct Entries {
 }
 
 #[derive(Clone, Debug, CandidType, Deserialize)]
-pub struct UserEntries {
+pub struct AnchorEntries {
     // make this a vec of options to keep Entry extensible
     pub entries: Vec<Option<Entry>>,
     // cursor pointing to the next entry not included in this response, if any

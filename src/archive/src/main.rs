@@ -264,7 +264,7 @@ fn get_entries(index: Option<u64>, limit: Option<u16>) -> Entries {
 }
 
 #[query]
-fn get_user_entries(anchor: Anchor, cursor: Option<Cursor>, limit: Option<u16>) -> UserEntries {
+fn get_anchor_entries(anchor: Anchor, cursor: Option<Cursor>, limit: Option<u16>) -> AnchorEntries {
     let num_entries = sanitize_limit(limit);
 
     with_anchor_index_mut(|index| {
@@ -301,7 +301,7 @@ fn get_user_entries(anchor: Anchor, cursor: Option<Cursor>, limit: Option<u16>) 
                 .map(|(_, entry)| candid::decode_one(&entry).expect("failed to decode log entry"))
                 .collect();
 
-            UserEntries { entries, cursor }
+            AnchorEntries { entries, cursor }
         })
     })
 }
