@@ -176,16 +176,14 @@ struct AnchorIndexKey {
 
 impl Storable for AnchorIndexKey {
     fn to_bytes(&self) -> Cow<[u8]> {
-        let mut buf = Vec::with_capacity(ANCHOR_INDEX_KEY_LENGTH);
+        let mut buf = Vec::with_capacity(std::mem::size_of::<AnchorIndexKey>());
         buf.extend(&self.anchor.to_le_bytes());
         buf.extend(&self.timestamp.to_le_bytes());
         buf.extend(&self.log_index.to_le_bytes());
-        assert_eq!(buf.len(), ANCHOR_INDEX_KEY_LENGTH);
         Cow::Owned(buf)
     }
 
     fn from_bytes(bytes: Vec<u8>) -> Self {
-        assert_eq!(bytes.len(), ANCHOR_INDEX_KEY_LENGTH);
         AnchorIndexKey {
             anchor: u64::from_le_bytes(
                 TryFrom::try_from(&bytes[0..8]).expect("failed to read anchor"),
