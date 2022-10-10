@@ -391,7 +391,6 @@ body {
   font-size: 0.8em;
 }
 
-a,
 .t-link {
   display: inline;
   color: var(--rc-interaction-text);
@@ -850,6 +849,17 @@ a:hover,
   margin-top: var(--rs-footer-stack);
 }
 
+.l-footer__elements {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+}
+
+.l-footer__element {
+    padding: 0 1rem;
+
+}
+
 /**
  *  Footer Navigation component
  *  1) radial shadow underneath the line below the links
@@ -906,6 +916,16 @@ a:hover,
   display: block;
   max-width: 100%;
 }
+
+#ic {
+
+}
+
+#onchain {
+
+}
+
+
 
 .page-signature:hover,
 .page-signature:focus {
@@ -1127,4 +1147,24 @@ input[type="checkbox"] {
   -ms-appearance: checkbox !important;
   -o-appearance: checkbox !important;
   appearance: checkbox !important;
+}
+
+
+/* The animation code */
+@keyframes position {
+  0%, 45%{
+    transform: translate(0px, 0px);
+    }
+  50%, 95%{
+    transform: translate(0px, 24px);
+    }
+  100%{
+    transform: translate(0px, 0px);
+    }
+}
+
+#ic-badge-text {
+  animation-name: position;
+  animation-duration: 8s;
+  animation-iteration-count: infinite;
 }
