@@ -12,7 +12,6 @@ export const footer = html`<footer class="l-footer">
     target="_blank"
     >Home</a>
     </li>
-&#x2022;
     <li class="l-footer__element">
   <a
     aria-label="Internet Computer homepage"
@@ -21,7 +20,6 @@ export const footer = html`<footer class="l-footer">
     target="_blank"
     >Help</a>
     </li>
-&#x2022;
     <li class="l-footer__element">
   <a
     class="page-signature"

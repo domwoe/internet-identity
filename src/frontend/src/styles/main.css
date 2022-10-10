@@ -851,12 +851,13 @@ a:hover,
 
 .l-footer__elements {
     display: flex;
-    justify-content: center;
-    align-items: stretch;
+    justify-content: space-between;
+    align-content: center;
 }
 
 .l-footer__element {
     padding: 0 1rem;
+    margin: 0;
 
 }
 
