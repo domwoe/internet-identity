@@ -2,7 +2,11 @@
  * just to give an idea of what they look like, and to speed up the development cycle when
  * working on HTML and CSS. */
 import "./styles/main.css";
-import { html, render } from "lit-html";
+import { createRef, ref, Ref } from "lit-html/directives/ref.js";
+import { asyncReplace } from "lit-html/directives/async-replace.js";
+
+import { withRef } from "./utils/utils";
+import { TemplateResult, html, render } from "lit-html";
 import {
   Challenge,
   DeviceData,
@@ -42,6 +46,7 @@ import {
 import { deviceRegistrationDisabledInfo } from "./flows/addDevice/welcomeView/deviceRegistrationModeDisabled";
 import { showVerificationCode } from "./flows/addDevice/welcomeView/showVerificationCode";
 import { verifyDevice } from "./flows/addDevice/manage/verifyTentativeDevice";
+import { mkAnchorSelect } from "./components/anchorSelect";
 import { withLoader } from "./components/loader";
 import { displaySafariWarning } from "./flows/recovery/displaySafariWarning";
 import { displayError } from "./components/displayError";
@@ -204,6 +209,73 @@ const iiPages: Record<string, () => void> = {
   registerDisabled: () => registerDisabled(),
 };
 
+const showcase: TemplateResult = html`
+  <h1 class="t-title t-title--main">showcase</h1>
+  <div class="showcase-grid l-stack">
+    ${Object.entries(iiPages).map(([key, _]) => {
+      return html`<aside>
+        <a data-page-name="${key}" href="/${key}">
+          <iframe src="/${key}" title="${key}"></iframe>
+          <h2>${key}</h2>
+        </a>
+      </aside>`;
+    })}
+  </div>
+`;
+
+const components = (): TemplateResult => {
+  const showSelected: Ref<HTMLDivElement> = createRef();
+  const savedAnchors: Ref<HTMLInputElement> = createRef();
+  const updateSavedAnchors: Ref<HTMLButtonElement> = createRef();
+
+  const mk = (anchors: bigint[]): TemplateResult =>
+    mkAnchorSelect({
+      savedAnchors: anchors,
+      onSubmit: (anchor: bigint) =>
+        withRef(showSelected, (div) => {
+          div.innerText = anchor.toString();
+        }),
+    }).template;
+
+  const ptr: { trigger?: (value: unknown) => void } = {};
+
+  async function* elems(): AsyncIterable<TemplateResult> {
+    yield mk([BigInt(10055), BigInt(1669234)]);
+    while (true) {
+      // Wait until trigger
+      await new Promise((resolve: (value: unknown) => void) => {
+        ptr.trigger = resolve;
+      });
+      const value = savedAnchors.value?.value;
+      if (value !== undefined) {
+        if (value === "") {
+          yield mk([]);
+        } else {
+          const strings = value.split(",");
+
+          const values = strings.map((x) => {
+            return BigInt(x);
+          });
+
+          // yield template
+          yield mk(values);
+        }
+      }
+    }
+  }
+
+  return html`
+    <div>
+        <input ${ref(savedAnchors)} placeholder="anchor1, anchor2" ></input>
+        <button ${ref(updateSavedAnchors)} @click="${() => {
+    if (ptr.trigger !== undefined) {
+      ptr.trigger("");
+    }
+  }}">update</button>
+        <div>${asyncReplace(elems())}</div>
+    <div ${ref(showSelected)}></div></div>`;
+};
+
 // The showcase
 const pageContent = html`
   <style>
@@ -250,18 +322,7 @@ const pageContent = html`
       font-size: 1.25rem;
     }
   </style>
-  <h1 class="t-title t-title--main">showcase</h1>
-  <div class="showcase-grid l-stack">
-    ${Object.entries(iiPages).map(([key, _]) => {
-      return html`<aside>
-        <a data-page-name="${key}" href="/${key}">
-          <iframe src="/${key}" title="${key}"></iframe>
-          <h2>${key}</h2>
-        </a>
-      </aside>`;
-    })}
-  </div>
-  ${styleguide}
+  ${showcase} ${components()} ${styleguide}
 `;
 
 const init = async () => {
