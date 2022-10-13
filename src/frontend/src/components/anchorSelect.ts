@@ -54,13 +54,15 @@ export const mkAnchorSelect = (props: {
           ${anchor} ->
         </li>`
       )}
-      <span class="t-action" @click="${chasmToggle}"
-        >use another anchor
-        <span ${ref(chasmToggleRef)} class="t-link__icon c-chasm-button"
-          >${caretDownIcon}
+      <div class="t-centered l-stack">
+        <span class="t-action" @click="${chasmToggle}"
+          >Use another anchor
+          <span ${ref(chasmToggleRef)} class="t-link__icon c-chasm-button"
+            >${caretDownIcon}
+          </span>
         </span>
-      </span>
-      <div ${ref(chasmRef)} class="c-chasm c-chasm--closed">
+      </div>
+      <div ${ref(chasmRef)} class="c-chasm c-chasm--closed l-stack">
         ${anchorInput.template}
       </div>
     </ul>

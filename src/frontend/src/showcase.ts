@@ -265,15 +265,21 @@ const components = (): TemplateResult => {
   }
 
   return html`
-    <div>
-        <input ${ref(savedAnchors)} placeholder="anchor1, anchor2" ></input>
-        <button ${ref(updateSavedAnchors)} @click="${() => {
+    <div class="c-card" style="margin: 40px;">
+        <input class="c-input" ${ref(
+          savedAnchors
+        )} placeholder="stored anchors: anchor1, anchor2, ..." ></input>
+        <button class="c-button" ${ref(updateSavedAnchors)} @click="${() => {
     if (ptr.trigger !== undefined) {
       ptr.trigger("");
     }
   }}">update</button>
-        <div>${asyncReplace(elems())}</div>
-    <div ${ref(showSelected)}></div></div>`;
+        <div style="margin: 40px; border: 1px solid red; padding: 40px;">${asyncReplace(
+          elems()
+        )}</div>
+    <div ${ref(
+      showSelected
+    )} class="c-input c-input--readonly">Please select anchor</div></div>`;
 };
 
 // The showcase
