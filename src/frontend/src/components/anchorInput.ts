@@ -83,9 +83,21 @@ export const mkAnchorInput = (props: {
     return result;
   };
 
+  const focus = (e: Element | undefined) => {
+      console.log("Ok let's try");
+    if (e instanceof HTMLInputElement) {
+        e.addEventListener("DOMNodeInsertedIntoDocument", e.select);
+
+        console.log(e.parentElement);
+        console.log(e.parentElement?.parentElement);
+        console.log(e.parentElement?.parentElement?.parentElement);
+    }
+  };
+
   const template = html` <div class="l-stack c-input--anchor">
     <label class="c-input--anchor__wrap" aria-label="Identity Anchor">
       <input
+        ${ref(focus)}
         ${ref(userNumberInput)}
         type="text"
         id="${props.inputId}"

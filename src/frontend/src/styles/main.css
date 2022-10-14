@@ -1055,14 +1055,9 @@ a:hover,
 }
 
 .c-list__parcel--detail {
-  display: none;
+  overflow: hidden;
   white-space: inherit;
-}
-
-.c-list__item:focus .c-list__parcel--detail,
-.c-list__item:focus-within .c-list__parcel--detail,
-.c-list__item--focus .c-list__parcel--detail {
-  display: block;
+  padding: var(--vs-bezel) 0.8em;
 }
 
 .c-list__parcel--fullwidth {
