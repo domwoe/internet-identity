@@ -274,9 +274,7 @@ const components = (): TemplateResult => {
       ptr.trigger("");
     }
   }}">update</button>
-        <div style="margin: 40px; border: 1px solid red; padding: 40px;">${asyncReplace(
-          elems()
-        )}</div>
+        <div>${asyncReplace(elems())}</div>
     <div ${ref(
       showSelected
     )} class="c-input c-input--readonly">Please select anchor</div></div>`;

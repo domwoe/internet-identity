@@ -45,13 +45,13 @@ export const mkAnchorSelect = (props: {
     });
 
   const template = html` <div class="l-stack">
-    <ul class="c-list c-list--vip c-list--anchors">
+    <ul class="c-list c-list--anchors">
       ${props.savedAnchors.map(
         (anchor: bigint) => html` <li
-          class="c-list__item c-list__item--icon icon-trigger"
+          class="c-list__item c-list__item--vip c-list__item--icon icon-trigger"
         >
           <button
-            class="c-list__parcel c-list__parcel--vip"
+            class="c-list__parcel"
             @click="${() => props.onSubmit(anchor)}"
             tabindex="0"
           >
@@ -60,20 +60,26 @@ export const mkAnchorSelect = (props: {
           <i class="c-list__icon"> ${arrowRight} </i>
         </li>`
       )}
-      <div class="t-centered l-stack">
-        <span class="t-action" @click="${chasmToggle}"
-          >Use another anchor
-          <span ${ref(chasmToggleRef)} class="t-link__icon c-chasm-button"
-            >${caretDownIcon}
-          </span>
-        </span>
-      </div>
-      <div ${ref(chasmRef)} class="c-chasm c-chasm--closed l-stack">
-        ${anchorInput.template}
-        <button class="c-button" @click="${anchorInput.submit}">
-          Oh ouiiii
-        </button>
-      </div>
+      <li class="c-list__item c-list__item--noFocusStyle">
+        <div class="c-list__parcel c-list__parcel--fullwidth">
+          <a href="#otheranchor">Use an other anchor</a>
+        </div>
+        <div
+          id="#otheranchor"
+          class="c-list__parcel c-list__parcel--detail c-list__parcel--fullwidth"
+        >
+          ${anchorInput.template}
+          <button class="c-button" @click="${anchorInput.submit}">
+            Oh ouiiii
+          </button>
+          <p class="l-stack">
+            An <b class="t-strong">Identity Anchor</b> is a
+            <b class="t-strong">unique ID</b> that is used to authenticate
+            yourself. You will be able to use it to
+            <b class="t-strong">log in</b> to all kinds of apps.
+          </p>
+        </div>
+      </li>
     </ul>
   </div>`;
 
