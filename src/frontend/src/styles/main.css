@@ -1060,7 +1060,8 @@ a:hover,
 }
 
 .c-list__item:focus .c-list__parcel--detail,
-.c-list__item:focus-within .c-list__parcel--detail {
+.c-list__item:focus-within .c-list__parcel--detail,
+.c-list__item--focus .c-list__parcel--detail {
   display: block;
 }
 

@@ -23,25 +23,10 @@ export const mkAnchorSelect = (props: {
   const chasmToggleRef: Ref<HTMLSpanElement> = createRef();
 
   /* Toggle the chasm open/closed */
-  const chasmToggle = () =>
+  const chasmOpen = () =>
     withRef(chasmRef, (chasm) => {
       const classes = chasm.classList;
-
-      if (classes.contains("c-chasm--closed")) {
-        classes.remove("c-chasm--closed");
-        classes.add("c-chasm--open");
-
-        withRef(chasmToggleRef, (arrow) =>
-          arrow.classList.add("c-chasm__button--flipped")
-        );
-      } else if (classes.contains("c-chasm--open")) {
-        classes.remove("c-chasm--open");
-        classes.add("c-chasm--closed");
-
-        withRef(chasmToggleRef, (arrow) =>
-          arrow.classList.remove("c-chasm__button--flipped")
-        );
-      }
+      classes.add("c-list__item--focus");
     });
 
   const template = html` <div class="l-stack">
@@ -60,9 +45,13 @@ export const mkAnchorSelect = (props: {
           <i class="c-list__icon"> ${arrowRight} </i>
         </li>`
       )}
-      <li class="c-list__item c-list__item--noFocusStyle">
+      <li
+        class="c-list__item c-list__item--noFocusStyle"
+        @focus="${chasmOpen}"
+        ${ref(chasmRef)}
+      >
         <div class="c-list__parcel c-list__parcel--fullwidth">
-          <a href="#otheranchor">Use an other anchor</a>
+          <a href="#otheranchor" @click="${chasmOpen}">Use an other anchor</a>
         </div>
         <div
           id="#otheranchor"
