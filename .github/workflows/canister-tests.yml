@@ -216,6 +216,7 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-3
 
+      - run: ls -la target
       - name: 'Download II wasm'
         uses: actions/download-artifact@v3
         with:
