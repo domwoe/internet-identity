@@ -974,12 +974,9 @@ a:hover,
   position: relative;
 }
 
-.c-list--anchors .c-list__item:focus-within {
+.c-list--anchors .c-list__item:focus-within,
+.c-list--anchors .c-list__item--focus {
   z-index: var(--vz-foreground);
-}
-.c-list--anchors .c-list__item:focus-within::before {
-  opacity: 1;
-  transform: scaleX(1) scaleY(0.8);
 }
 
 .c-list--anchors .c-list__item::before {
@@ -992,6 +989,12 @@ a:hover,
   opacity: 0;
   transform: scaleX(0.1) scaleY(0.7);
   transition: 300ms opacity linear, 600ms transform cubic-bezier(0.3, 0.7, 0, 1);
+}
+
+.c-list--anchors .c-list__item:focus-within::before,
+.c-list--anchors .c-list__item--focus::before {
+  opacity: 1;
+  transform: scaleX(1) scaleY(0.8);
 }
 
 .c-list--anchors .c-list__item--noFocusStyle::before {
