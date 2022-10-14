@@ -1055,14 +1055,25 @@ a:hover,
 }
 
 .c-list__parcel--detail {
-  display: none;
+  height: 0;
+  overflow: hidden;
   white-space: inherit;
+  opacity: 0;
+  padding: 0;
 }
 
 .c-list__item:focus .c-list__parcel--detail,
 .c-list__item:focus-within .c-list__parcel--detail,
 .c-list__item--focus .c-list__parcel--detail {
-  display: block;
+  height: auto;
+  opacity: 1;
+  padding: var(--vs-bezel) 0.8em;
+}
+
+.c-list__item:focus .c-list__parcel--summary,
+.c-list__item:focus-within .c-list__parcel--summary,
+.c-list__item--focus .c-list__parcel--summary {
+  display: none;
 }
 
 .c-list__parcel--fullwidth {

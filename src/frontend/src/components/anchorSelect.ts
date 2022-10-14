@@ -50,9 +50,14 @@ export const mkAnchorSelect = (props: {
         @focus.capture="${chasmOpen}"
         ${ref(chasmRef)}
       >
-        <div class="c-list__parcel c-list__parcel--fullwidth">
-          <a href="#otheranchor" @click="${chasmOpen}">Use an other anchor</a>
-        </div>
+        <a
+          class="c-list__parcel c-list__parcel--fullwidth c-list__parcel--summary"
+          href="#otheranchor"
+          @click="${chasmOpen}"
+          tabindex="-1"
+        >
+          Use an other anchor
+        </a>
         <div
           id="#otheranchor"
           class="c-list__parcel c-list__parcel--detail c-list__parcel--fullwidth"
