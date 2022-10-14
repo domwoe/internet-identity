@@ -201,10 +201,6 @@ jobs:
       # time is spent in each step separately
       - run: cargo check --help
 
-        # NOTE: the top-level crate "canister_tests" still gets recompiled (~4mn)
-        # due to the mtime changing on the checkout. Can be worked around by storing
-        # the original mtime in the cache and by hashing all of src/canister_tests
-        # (and then restoring the mtime).
       - uses: actions/cache@v3
         with:
           # note on paths: we include the whole ~/.cargo/. (as opposed to just .cargo/git, etc.) because cargo stores crate
@@ -214,7 +210,7 @@ jobs:
           path: |
             ~/.cargo
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-3
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml',  'src/**/tests/*.rs', 'src/**/*tests?.rs') }}
 
       - run: ls -la target
       - name: 'Download II wasm'
