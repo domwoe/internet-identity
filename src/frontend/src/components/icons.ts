@@ -262,12 +262,39 @@ export const caretDownIcon = html`
     width="20"
     height="20"
     viewBox="0 0 21 21"
-    fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
     <g fill="none" stroke="currentColor" stroke-width="1">
       <circle cx="10" cy="10" r="9" />
       <path d="M6 8.5 L10 12.5 L14 8.5" />
     </g>
+  </svg>
+`;
+
+export const arrowRight = html`
+  <svg
+    viewBox="0 0 21 21"
+    xmlns="http://www.w3.org/2000/svg"
+    class="icon icon--arrow-right"
+  >
+    <style>
+      .icon--arrow-right {
+        overflow: visible;
+      }
+      .icon-trigger .icon--arrow-right path {
+        transition: d 300ms cubic-bezier(0.3, 0.7, 0, 1);
+      }
+      .icon-trigger:hover .icon--arrow-right path {
+        d: path("M -10 10 L 13 10 M 8 5 L 13.5 10 L 8 15");
+        d: "M -10 10 L 13 10 M 8 5 L 13.5 10 L 8 15";
+      }
+    </style>
+    <path
+      vector-effect="non-scaling-stroke"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1"
+      d="M 0 10 L 13 10 M 8 5 L 13.5 10 L 8 15"
+    />
   </svg>
 `;

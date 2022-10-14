@@ -328,7 +328,7 @@ const pageContent = html`
       font-size: 1.25rem;
     }
   </style>
-  ${showcase} ${components()} ${styleguide}
+  ${/*showcase*/ "s"} ${components()} ${styleguide}
 `;
 
 const init = async () => {
