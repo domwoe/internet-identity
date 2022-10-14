@@ -30,7 +30,9 @@ export const mkAnchorSelect = (props: {
     });
 
   const template = html` <div class="l-stack">
-    <ul class="c-list c-list--anchors">
+    <h1 class="t-title--main">Choose an <b class="t-strong">Identity Anchor</b></h1>
+    <h2>to continue to <b class="t-strong">xyz.io</b></h2> 
+    <ul class="c-list c-list--anchors l-stack">
       ${props.savedAnchors.map(
         (anchor: bigint) => html` <li
           class="c-list__item c-list__item--vip c-list__item--icon icon-trigger"
@@ -57,7 +59,6 @@ export const mkAnchorSelect = (props: {
           tabindex="-1"
         >
           Use an other anchor
-
           <i class="c-list__icon"> … </i>
         </a>
         <div
