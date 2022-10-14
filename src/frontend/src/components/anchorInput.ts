@@ -84,13 +84,13 @@ export const mkAnchorInput = (props: {
   };
 
   const focus = (e: Element | undefined) => {
-      console.log("Ok let's try");
+    console.log("Ok let's try");
     if (e instanceof HTMLInputElement) {
-        e.addEventListener("DOMNodeInsertedIntoDocument", e.select);
+      e.addEventListener("DOMNodeInsertedIntoDocument", e.select);
 
-        console.log(e.parentElement);
-        console.log(e.parentElement?.parentElement);
-        console.log(e.parentElement?.parentElement?.parentElement);
+      console.log(e.parentElement);
+      console.log(e.parentElement?.parentElement);
+      console.log(e.parentElement?.parentElement?.parentElement);
     }
   };
 

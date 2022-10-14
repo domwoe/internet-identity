@@ -1,7 +1,5 @@
 import { html, TemplateResult } from "lit-html";
-import { caretDownIcon, arrowRight } from "./icons";
-import { withRef } from "../utils/utils";
-import { createRef, ref, Ref } from "lit-html/directives/ref.js";
+import { arrowRight } from "./icons";
 import { until } from "lit-html/directives/until.js";
 import { mkAnchorInput } from "./anchorInput";
 
@@ -13,14 +11,13 @@ export const mkAnchorSelect = (props: {
   template: TemplateResult;
 } => {
   // TODO: remove first l-stack
-    // TODO: add focus to first elem
-  const template = html`
-     <ul class="c-list c-list--anchors l-stack">
-      ${elements({
-        savedAnchors: props.savedAnchors,
-        onSubmit: props.onSubmit,
-      })}
-    </ul>`;
+  // TODO: add focus to first elem
+  const template = html` <ul class="c-list c-list--anchors l-stack">
+    ${elements({
+      savedAnchors: props.savedAnchors,
+      onSubmit: props.onSubmit,
+    })}
+  </ul>`;
 
   return { template };
 };
@@ -50,8 +47,9 @@ function elements(props: {
         @focus="${() => {
           ptr.otherAnchorOpen?.();
         }}"
-        >Use another anchor<i class="c-list__icon"> … </i></button
       >
+        Use another anchor<i class="c-list__icon"> … </i>
+      </button>
     `;
 
     elems = savedAnchorsTpl;
