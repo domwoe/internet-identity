@@ -57,6 +57,8 @@ export const mkAnchorSelect = (props: {
           tabindex="-1"
         >
           Use an other anchor
+
+          <i class="c-list__icon"> … </i>
         </a>
         <div
           id="#otheranchor"
