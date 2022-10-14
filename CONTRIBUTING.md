@@ -12,6 +12,8 @@ Make sure to read the [LICENSE] first. For development instructions, see the [HA
 
 ## Bug reports
 
+unrelated change
+
 We really appreciate bug reports through [GitHub tickets].
 
 [GitHub tickets]: https://github.com/dfinity/internet-identity/issues/new
