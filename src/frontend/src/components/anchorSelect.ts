@@ -64,6 +64,9 @@ export const mkAnchorSelect = (props: {
       </div>
       <div ${ref(chasmRef)} class="c-chasm c-chasm--closed l-stack">
         ${anchorInput.template}
+        <button class="c-button" @click="${anchorInput.submit}">
+          Oh ouiiii
+        </button>
       </div>
     </ul>
   </div>`;
