@@ -45,13 +45,18 @@ export const mkAnchorSelect = (props: {
     });
 
   const template = html` <div class="l-stack">
-    <ul class="c-list c-list--anchors">
+    <ul class="c-list c-list--vip c-list--anchors">
       ${props.savedAnchors.map(
         (anchor: bigint) => html` <li
           class="c-list__item c-list__item--icon icon-trigger"
-          @click="${() => props.onSubmit(anchor)}"
         >
-          <span class="c-list__parcel"> ${anchor} </span>
+          <button
+            class="c-list__parcel c-list__parcel--vip"
+            @click="${() => props.onSubmit(anchor)}"
+            tabindex="0"
+          >
+            ${anchor}
+          </button>
           <i class="c-list__icon"> ${arrowRight} </i>
         </li>`
       )}

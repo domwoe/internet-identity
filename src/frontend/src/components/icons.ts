@@ -281,10 +281,15 @@ export const arrowRight = html`
       .icon--arrow-right {
         overflow: visible;
       }
+      .icon--arrow-right path {
+        stroke-width: var(--stroke-width, 1);
+      }
       .icon-trigger .icon--arrow-right path {
         transition: d 300ms cubic-bezier(0.3, 0.7, 0, 1);
       }
-      .icon-trigger:hover .icon--arrow-right path {
+      .icon-trigger:hover .icon--arrow-right path,
+      .icon-trigger:focus .icon--arrow-right path,
+      .icon-trigger:focus-within .icon--arrow-right path {
         d: path("M -10 10 L 13 10 M 8 5 L 13.5 10 L 8 15");
         d: "M -10 10 L 13 10 M 8 5 L 13.5 10 L 8 15";
       }
@@ -293,7 +298,6 @@ export const arrowRight = html`
       vector-effect="non-scaling-stroke"
       fill="none"
       stroke="currentColor"
-      stroke-width="1"
       d="M 0 10 L 13 10 M 8 5 L 13.5 10 L 8 15"
     />
   </svg>
