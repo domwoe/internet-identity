@@ -47,7 +47,7 @@ export const mkAnchorSelect = (props: {
       )}
       <li
         class="c-list__item c-list__item--noFocusStyle"
-        @focus="${chasmOpen}"
+        @focus.capture="${chasmOpen}"
         ${ref(chasmRef)}
       >
         <div class="c-list__parcel c-list__parcel--fullwidth">
@@ -67,6 +67,9 @@ export const mkAnchorSelect = (props: {
             yourself. You will be able to use it to
             <b class="t-strong">log in</b> to all kinds of apps.
           </p>
+          <div class="l-stack">
+            <a href="#" class="t-link">Create a new anchor</a>
+          </div>
         </div>
       </li>
     </ul>
