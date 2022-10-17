@@ -984,6 +984,7 @@ a:hover,
   position: absolute;
   pointer-events: none;
   inset: 0;
+  will-change: filter;
   background-image: linear-gradient(270deg, var(--rg-brand));
   filter: blur(20px);
   opacity: 0;
