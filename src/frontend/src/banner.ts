@@ -1,10 +1,22 @@
 import { render, html, TemplateResult } from "lit-html";
+import { features } from "./features";
+import { postUrl } from "./utils/migrating";
 import { anyFeatures } from "./features";
 
 // Show a warning banner if the build is not "official". This happens if either the build
 // is a flavored build, or if the origin is not 'identity.ic0.app'.
 export const showWarningIfNecessary = (): void => {
   const officialUrl = "https://identity.ic0.app";
+  if (features.IS_MIGRATING) {
+    showWarning(html`Internet Identity is migrating!
+      <a
+        class="features-warning-btn"
+        target="_blank"
+        rel="noopener noreferrer"
+        href="${postUrl}"
+        >more</a
+      >`);
+  }
   if (anyFeatures()) {
     showWarning(html`Test only. Do not use your regular anchor!
       <a
