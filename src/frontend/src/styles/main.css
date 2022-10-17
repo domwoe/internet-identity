@@ -954,6 +954,11 @@ a:hover,
   font-weight: bold;
 }
 
+.c-list__parcel--select:hover {
+  background-color: var(--rc-button-secondary);
+  transition: background-color 400ms cubic-bezier(0.3, 0.7, 0, 1);
+}
+
 .c-list--anchors {
   --border-radius: 8px;
   width: 40rem;

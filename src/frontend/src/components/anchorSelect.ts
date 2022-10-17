@@ -77,7 +77,7 @@ const anchorItem = (props: {
 }): TemplateResult => html`
   <li class="c-list__item c-list__item--vip c-list__item--icon icon-trigger">
     <button
-      class="c-list__parcel"
+      class="c-list__parcel c-list__parcel--select"
       @click="${() => props.onSubmit(props.anchor)}"
       tabindex="0"
     >
