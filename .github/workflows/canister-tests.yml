@@ -266,6 +266,7 @@ jobs:
       - name: Build & Cache Tests Dependencies
         shell: bash
         run: |
+          cargo fetch
           cargo_lock_timestamp="$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- Cargo.lock)"
           find ~/.cargo -exec touch -t "$cargo_lock_timestamp" {} +
 
