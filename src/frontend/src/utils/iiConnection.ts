@@ -379,6 +379,12 @@ export class AuthenticatedConnection extends Connection {
       .delegations) {
       // prettier-ignore
       if (+new Date(Number(delegation.expiration / BigInt(1000000))) <= +Date.now()) {
+        // refresh to the maintenance page once the session expires
+        window.location.reload();
+        return new Promise((_resolve) => {
+          // never resolve, do not create actor
+        });
+        // noinspection UnreachableCodeJS
         this.actor = undefined;
         break;
       }
