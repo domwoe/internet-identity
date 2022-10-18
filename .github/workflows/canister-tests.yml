@@ -213,7 +213,7 @@ jobs:
           # We also include all Cargo tomls and the lockfile
           path: |
             ~/.cargo
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-cargo
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-cargooo
 
       - name: 'Download II wasm'
         uses: actions/download-artifact@v3
@@ -261,11 +261,14 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: /tmp/target-deps
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-deps
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-deps-adas
 
       - name: Build & Cache Tests Dependencies
         shell: bash
         run: |
+          cargo_lock_timestamp="$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- Cargo.lock)"
+          find ~/.cargo -exec touch -t "$cargo_lock_timestamp" {} +
+
           for crate in {canister_tests,archive,internet_identity}
           do
             mv "src/$crate" "/tmp/old-$crate"
@@ -279,13 +282,13 @@ jobs:
             rsync -avt /tmp/target-deps/ ./target/
           fi
           cargo build --tests --release
-          find ./target -exec touch -t "$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- Cargo.lock)" {} +
+          find ./target -exec touch -t "$cargo_lock_timestamp" {} +
           rsync -avt --exclude 'debug/incremental' "$PWD/target/" "/tmp/target-deps/"
 
       - uses: actions/cache@v3
         with:
           path: /tmp/target-tests
-          key: ${{ runner.os }}-cargo-tests-${{ steps.timestamps.outputs.latest-timestamp }}
+          key: ${{ runner.os }}-cargo-tests-${{ steps.timestamps.outputs.latest-timestamp }}-blah
 
       - name: Build & Cache Tests
         shell: bash
