@@ -279,7 +279,7 @@ jobs:
             rsync -avt /tmp/target-deps/ ./target/
           fi
           cargo build --tests --release
-          find ./target -exec touch -t ${{ steps.timestamps.outputs.latest-timestamp }} {} +
+          find ./target -exec touch -t "$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- Cargo.lock)" {} +
           rsync -avt --exclude 'debug/incremental' "$PWD/target/" "/tmp/target-deps/"
 
       - uses: actions/cache@v3
