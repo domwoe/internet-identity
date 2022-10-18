@@ -269,9 +269,9 @@ jobs:
           for crate in {canister_tests,archive,internet_identity}
           do
             mv "src/$crate" "/tmp/old-$crate"
-            cp "/tmp/old-$crate/Cargo.toml" "src/$crate/Cargo.toml"
             mkdir -p "src/$crate/src"
             touch -t 199201040707 "src/$crate/src/lib.rs"
+            cp "/tmp/old-$crate/Cargo.toml" "src/$crate/Cargo.toml"
           done
 
           if [ -d /tmp/target-deps/ ]
