@@ -213,8 +213,7 @@ jobs:
           # We also include all Cargo tomls and the lockfile
           path: |
             ~/.cargo
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-3
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-cargo
 
       - name: 'Download II wasm'
         uses: actions/download-artifact@v3
@@ -252,9 +251,39 @@ jobs:
           touch dist/ic-badge.svg
 
       # We split the test build and run so that it's clear from the GHA steps how long each took
-      - name: Build Tests
+      - uses: actions/cache@v3
+        with:
+          path: /tmp/target-deps
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-deps
+
+      - name: Build & Cache Tests Dependencies
         shell: bash
-        run: cargo build --tests --release
+        run: |
+          mv src/canister_tests/src /tmp/src-old
+          mkdir -p src/canister_tests/src
+          touch -t 199201040707 src/canister_tests/src/lib.rs
+          if [ -d /tmp/target-deps/ ]
+          then
+            rsync -avt /tmp/target-deps/ ./target/
+          fi
+          cargo build --tests --release
+          rsync -avt --exclude 'debug/incremental' "$PWD/target/" "/tmp/target-deps/"
+
+      - uses: actions/cache@v3
+        with:
+          path: /tmp/target-tests
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml', 'src/canister_tests') }}-tests
+
+      - name: Build & Cache Tests
+        shell: bash
+        run: |
+          mv /tmp/src-old src/canister_tests/src
+          if [ -d /tmp/target-tests/ ]
+          then
+            rsync -avt /tmp/target-tests/ ./target/
+          fi
+          cargo build --tests --release
+          rsync -avt --exclude 'debug/incremental' --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-tests/"
 
       - name: Run Tests
         shell: bash
