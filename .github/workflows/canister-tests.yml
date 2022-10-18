@@ -231,14 +231,21 @@ jobs:
         # meaningful mtimes that cargo can work use to decide what part of the target/ cache to invalidate as opposed
         # to just thrashing everything. This means that the build is a no-op for anything that doesn't change the actual test code.
       - name: 'Set timestamps'
+        id: timestamps
         run: |
-          git ls-tree -r --name-only HEAD ./src/ Cargo.* | \
+          timestamps=$(mktemp)
+          git ls-tree -r --name-only HEAD ./src/{internet_identity_interface,internet_identity,archive,metrics_encoder,canister_tests} Cargo.* | \
             while read filename
             do
               git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
               echo "Setting $filename to $git_time"
               TZ=UTC0 touch -t "$git_time" "$filename"
+              echo "$git_time" >> "$timestamps"
             done
+
+          latest_timestamp=$(sort <"$timestamps" -r | head -n 1)
+          rm "$timestamps"
+          echo "::set-output name=latest-timestamp::$latest_timestamp"
 
       - name: Create dummy assets
         run: |
@@ -259,9 +266,13 @@ jobs:
       - name: Build & Cache Tests Dependencies
         shell: bash
         run: |
-          mv src/canister_tests/src /tmp/src-old
-          mkdir -p src/canister_tests/src
-          touch -t 199201040707 src/canister_tests/src/lib.rs
+          for crate in {canister_tests,archive,internet_identity}
+          do
+            mv "src/$crate/src" "/tmp/old-$crate"
+            mkdir -p "src/$crate/src"
+            touch -t 199201040707 "src/$crate/src/lib.rs"
+          done
+
           if [ -d /tmp/target-deps/ ]
           then
             rsync -avt /tmp/target-deps/ ./target/
@@ -272,12 +283,17 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: /tmp/target-tests
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml', 'src/canister_tests') }}-tests
+          key: ${{ runner.os }}-cargo-tests-${{ steps.timestamps.outputs.latest-timestamp }}
 
       - name: Build & Cache Tests
         shell: bash
         run: |
-          mv /tmp/src-old src/canister_tests/src
+          for crate in {canister_tests,archive,internet_identity}
+          do
+            mv "/tmp/old-$crate" "src/$crate/src"
+            mkdir -p "src/$crate/src"
+            touch -t 199201040707 "src/$crate/src/lib.rs"
+          done
           if [ -d /tmp/target-tests/ ]
           then
             rsync -avt /tmp/target-tests/ ./target/
