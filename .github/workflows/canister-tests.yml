@@ -268,7 +268,8 @@ jobs:
         run: |
           for crate in {canister_tests,archive,internet_identity}
           do
-            mv "src/$crate/src" "/tmp/old-$crate"
+            mv "src/$crate" "/tmp/old-$crate"
+            cp "/tmp/old-$crate/Cargo.toml" "src/$crate/Cargo.toml"
             mkdir -p "src/$crate/src"
             touch -t 199201040707 "src/$crate/src/lib.rs"
           done
@@ -278,6 +279,7 @@ jobs:
             rsync -avt /tmp/target-deps/ ./target/
           fi
           cargo build --tests --release
+          find ./target -exec touch -t ${{ steps.timestamps.outputs.latest-timestamp }} {} +
           rsync -avt --exclude 'debug/incremental' "$PWD/target/" "/tmp/target-deps/"
 
       - uses: actions/cache@v3
@@ -290,15 +292,15 @@ jobs:
         run: |
           for crate in {canister_tests,archive,internet_identity}
           do
-            mv "/tmp/old-$crate" "src/$crate/src"
-            mkdir -p "src/$crate/src"
-            touch -t 199201040707 "src/$crate/src/lib.rs"
+            mv "/tmp/old-$crate" "src/$crate"
           done
+
           if [ -d /tmp/target-tests/ ]
           then
             rsync -avt /tmp/target-tests/ ./target/
           fi
           cargo build --tests --release
+          find ./target -exec touch -t ${{ steps.timestamps.outputs.latest-timestamp }} {} +
           rsync -avt --exclude 'debug/incremental' --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-tests/"
 
       - name: Run Tests
