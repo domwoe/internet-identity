@@ -254,7 +254,7 @@ pub mod compat {
 
     #[derive(Clone, Debug, CandidType, Deserialize)]
     pub struct InternetIdentityStats {
-        pub assigned_user_number_range: (types::UserNumber, UserNumber),
+        pub assigned_user_number_range: (types::UserNumber, types::UserNumber),
         pub users_registered: u64,
     }
 
