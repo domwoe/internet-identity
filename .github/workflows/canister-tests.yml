@@ -195,25 +195,24 @@ jobs:
           # Pull a deep copy so that we can set meaningful timestamps across builds, based on the commit history
           fetch-depth: '0'
 
+      - name: Figure out commits
+        id: git_info
+        run: |
+          commit_deps=$(git log -n 1 --pretty=format:%H -- Cargo.* src/*/Cargo.toml rust-toolchain.toml)
+          echo "::set-output name=commit_deps::$commit_deps"
+          timestamp_deps=$(git log -n 1 --pretty=format:%H "$commit_deps")
+          echo "::set-output name=timestamp_deps::$timestamp_deps"
+          commit_rust=$(git log -n 1 --pretty=format:%H -- src/[^frontend]*)
+          echo "::set-output name=commit_rust::$commit_rust"
+          timestamp_rust=$(git log -n 1 --pretty=format:%H "$commit_rust")
+          echo "::set-output name=timestamp_rust::$timestamp_rust"
+
       - uses: ./.github/actions/bootstrap
 
       # Rustup only installs cargo on the first call, so we use a dedicated step to get a good idea of how
       # time is spent in each step separately
       - run: cargo check --help
 
-        # NOTE: the top-level crate "canister_tests" still gets recompiled (~4mn)
-        # due to the mtime changing on the checkout. Can be worked around by storing
-        # the original mtime in the cache and by hashing all of src/canister_tests
-        # (and then restoring the mtime).
-      - uses: actions/cache@v3
-        with:
-          # note on paths: we include the whole ~/.cargo/. (as opposed to just .cargo/git, etc.) because cargo stores crate
-          # data as .crates(2?).{json,toml} without which the whole cache is invalidated. We may accumulate unnecessary
-          # stuff but the cache is anyway invalidated on every toolchain update.
-          # We also include all Cargo tomls and the lockfile
-          path: |
-            ~/.cargo
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-cargooo
 
       - name: 'Download II wasm'
         uses: actions/download-artifact@v3
@@ -227,26 +226,6 @@ jobs:
           name: archive.wasm
           path: .
 
-        # For each file involved in the build, set the mtime back to the commit date of the last edit. This means we get
-        # meaningful mtimes that cargo can work use to decide what part of the target/ cache to invalidate as opposed
-        # to just thrashing everything. This means that the build is a no-op for anything that doesn't change the actual test code.
-      - name: 'Set timestamps'
-        id: timestamps
-        run: |
-          timestamps=$(mktemp)
-          git ls-tree -r --name-only HEAD ./src/{internet_identity_interface,internet_identity,archive,metrics_encoder,canister_tests} Cargo.* | \
-            while read filename
-            do
-              git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
-              echo "Setting $filename to $git_time"
-              TZ=UTC0 touch -t "$git_time" "$filename"
-              echo "$git_time" >> "$timestamps"
-            done
-
-          latest_timestamp=$(sort <"$timestamps" -r | head -n 1)
-          rm "$timestamps"
-          echo "::set-output name=latest-timestamp::$latest_timestamp"
-
       - name: Create dummy assets
         run: |
           mkdir dist
@@ -257,55 +236,63 @@ jobs:
           touch dist/favicon.ico
           touch dist/ic-badge.svg
 
-      # We split the test build and run so that it's clear from the GHA steps how long each took
+        # For each file involved in the build, set the mtime back to the commit date of the last edit. This means we get
+        # meaningful mtimes that cargo can work use to decide what part of the target/ cache to invalidate as opposed
+        # to just thrashing everything. This means that the build is a no-op for anything that doesn't change the actual test code.
+      - name: Set timestamps
+        id: timestamps
+        run: |
+
+      - name: Checkout last deps update
+        run: |
+          git co ${{ steps.git_info.outputs.commit_deps }}
+          git ls-tree -r --name-only HEAD | while read filename; do
+              git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
+              TZ=UTC0 touch -t "$git_time" "$filename"
+            done
+
       - uses: actions/cache@v3
         with:
-          path: /tmp/target-deps
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/Cargo.toml', 'rust-toolchain.toml') }}-deps-adas
+          path: ~/.cargo
+          key: ${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo-tmp
 
-      - name: Build & Cache Tests Dependencies
-        shell: bash
+      - name: Download Cargo Dependencies
         run: |
           cargo fetch
-          cargo_lock_timestamp="$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- Cargo.lock)"
-          find ~/.cargo -exec touch -t "$cargo_lock_timestamp" {} +
+          find ~/.cargo -exec touch -t ${{ steps.git_info.outputs.timestamp_deps }} {} +
 
-          for crate in {canister_tests,archive,internet_identity}
-          do
-            mv "src/$crate" "/tmp/old-$crate"
-            mkdir -p "src/$crate/src"
-            touch -t 199201040707 "src/$crate/src/lib.rs"
-            cp "/tmp/old-$crate/Cargo.toml" "src/$crate/Cargo.toml"
-          done
-
-          if [ -d /tmp/target-deps/ ]
-          then
-            rsync -avt /tmp/target-deps/ ./target/
-          fi
-          cargo build --tests --release
-          find ./target -exec touch -t "$cargo_lock_timestamp" {} +
-          rsync -avt --exclude 'debug/incremental' "$PWD/target/" "/tmp/target-deps/"
+      # rust dependencies
 
       - uses: actions/cache@v3
+        id: cache-deps
         with:
-          path: /tmp/target-tests
+          path: /tmp/target-deps
+          key: ${{ runner.os }}-${{ steps.commits.outputs.commit_deps }}-target-deps-tmp
+
+      - name: Build & Cache Cargo Dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cargo build --tests --release
+          mv "$PWD/target/" "/tmp/target-deps/"
+
+      - uses: actions/cache@v3
+        id: cache-rust
+        with:
+          path: /tmp/target-rust
           key: ${{ runner.os }}-cargo-tests-${{ steps.timestamps.outputs.latest-timestamp }}-blah
 
       - name: Build & Cache Tests
         shell: bash
         run: |
-          for crate in {canister_tests,archive,internet_identity}
-          do
-            mv "/tmp/old-$crate" "src/$crate"
-          done
 
+          find ./target -exec touch -t "$cargo_lock_timestamp" {} +
           if [ -d /tmp/target-tests/ ]
           then
+            find ./tmp/target-tests -exec touch -t ${{ steps.timestamps.outputs.latest-timestamp }} {} +
             rsync -avt /tmp/target-tests/ ./target/
           fi
           cargo build --tests --release
-          find ./target -exec touch -t ${{ steps.timestamps.outputs.latest-timestamp }} {} +
-          rsync -avt --exclude 'debug/incremental' --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-tests/"
+          rsync -av --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-tests/"
 
       - name: Run Tests
         shell: bash
