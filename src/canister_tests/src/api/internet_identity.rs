@@ -251,6 +251,7 @@ pub fn stats(
 /// A "compatibility" module for the previous version of II to handle API changes.
 pub mod compat {
     use super::*;
+    use candid::{CandidType, Deserialize};
 
     #[derive(Clone, Debug, CandidType, Deserialize)]
     pub struct InternetIdentityStats {
