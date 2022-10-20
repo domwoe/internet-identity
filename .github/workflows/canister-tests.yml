@@ -258,15 +258,21 @@ jobs:
         id: cache-dot-cargo
         if: steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_deps
         with:
-          path: ~/.cargo
-          key: tmp2-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
+          path: /tmp/dot-cargo
+          key: tmp3-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
+
+      - name: Recover Cargo Dependencies
+        if: steps.cache-dot-cargo.outputs.cache-hit == 'true'
+        run: |
+          git checkout ${{ steps.git_info.outputs.commit_deps }}
+          rsync -av --no-t "/tmp/dot-cargo/" "$HOME/.cargo/"
 
       - name: Download Cargo Dependencies
         if: steps.cache-dot-cargo.outputs.cache-hit != 'true'
         run: |
           git checkout ${{ steps.git_info.outputs.commit_deps }}
           cargo fetch
-          find ~/.cargo -exec touch -t ${{ steps.git_info.outputs.timestamp_deps }} {} +
+          cp -a "$HOME/.cargo/" "/tmp/dot-cargo/"
 
       # Deps:
 
@@ -274,23 +280,17 @@ jobs:
         id: cache-deps
         with:
           path: /tmp/target-deps
-          key: tmp2-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-deps
+          key: tmp3-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-deps
 
       - name: Recover deps
-        run: if [ -d /tmp/target-deps/ ]; then rsync -av --update "/tmp/target-deps/" "$PWD/target/"; fi
+        if: steps.cache-deps.outputs.cache-hit == 'true'
+        run: rsync -av --no-t --update "/tmp/target-deps/" "$PWD/target/"
 
       - name: Build deps
-        if: ${{ ! (steps.cache-deps.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_deps) }}
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
-          git checkout ${{ steps.git_info.outputs.commit_deps }}
-          git ls-tree -r --name-only HEAD | while read filename; do
-              git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
-              TZ=UTC0 touch -t "$git_time" "$filename"
-            done
-
           cargo build --tests --release
           cp -a "$PWD/target/" "/tmp/target-deps/"
-          find /tmp/target-deps -exec touch -t ${{ steps.git_info.outputs.timestamp_deps }} {} +
 
       # Canister:
 
@@ -298,32 +298,25 @@ jobs:
         id: cache-canister
         with:
           path: /tmp/target-canister
-          key: tmp2-${{ runner.os }}-${{ steps.git_info.outputs.commit_canister }}-canister
+          key: tmp3-${{ runner.os }}-${{ steps.git_info.outputs.commit_canister }}-canister
 
       - name: Recover canister
-        run: if [ -d /tmp/target-canister/ ]; then rsync -av --update "/tmp/target-canister/" "$PWD/target/"; fi
-
-      - name: Build canister
-        if: ${{ ! (steps.cache-canister.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_canister) }}
+        if: steps.cache-canister.outputs.cache-hit == 'true'
         run: |
           git checkout ${{ steps.git_info.outputs.commit_canister }}
-          git ls-tree -r --name-only HEAD | while read filename; do
-              git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
-              TZ=UTC0 touch -t "$git_time" "$filename"
-            done
+          rsync -av --no-t --update "/tmp/target-canister/" "$PWD/target/"
 
+      - name: Build canister
+        if: steps.cache-canister.outputs.cache-hit != 'true'
+        run: |
+          git checkout ${{ steps.git_info.outputs.commit_canister }}
           cargo build --tests --release
           rsync -av --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-canister/"
-          find /tmp/target-canister -exec touch -t ${{ steps.git_info.outputs.timestamp_canister }} {} +
 
       # Build the tests
       - name: Build
         run: |
           git checkout ${{ steps.git_info.outputs.commit_now }}
-          git ls-tree -r --name-only HEAD | while read filename; do
-              git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
-              TZ=UTC0 touch -t "$git_time" "$filename"
-            done
           cargo build --tests --release
 
       - name: Run Tests
