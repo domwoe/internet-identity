@@ -21,7 +21,7 @@ export const showWarningIfNecessary = (): void => {
         target="_blank"
         rel="noopener noreferrer"
         href=${officialUrl}
-        >go to official</a
+        >go to fofficial</a
       >`);
   }
 };
