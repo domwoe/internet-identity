@@ -270,7 +270,7 @@ jobs:
         run: if [ -d /tmp/target-deps/ ]; then cp -a "/tmp/target-deps/" "$PWD/target/"; fi
 
       - name: Build deps
-        if: !(steps.cache-deps.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_deps)
+        if: ${{ ! (steps.cache-deps.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_deps) }}
         run: |
           git co ${{ steps.git_info.outputs.commit_deps }}
           git ls-tree -r --name-only HEAD | while read filename; do
@@ -294,7 +294,7 @@ jobs:
         run: if [ -d /tmp/target-canister/ ]; then rsync -avt "/tmp/target-canister/" "$PWD/target/"; fi
 
       - name: Build canister
-        if: !(steps.cache-canister.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_canister)
+        if: ${{ ! (steps.cache-canister.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_canister) }}
         run: |
           git co ${{ steps.git_info.outputs.commit_canister }}
           git ls-tree -r --name-only HEAD | while read filename; do
