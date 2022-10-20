@@ -284,7 +284,10 @@ jobs:
 
       - name: Recover deps
         if: steps.cache-deps.outputs.cache-hit == 'true'
-        run: rsync -av --no-t "/tmp/target-deps/" "$PWD/target/"
+        run: |
+          rsync -av --no-t "/tmp/target-deps/" "$PWD/target/"
+          mtime=$(date +%Y%m%d%H%M.%S)
+          find ./target -exec touch -t "$mtime" {} +
 
       - name: Build deps
         if: steps.cache-deps.outputs.cache-hit != 'true'
@@ -305,6 +308,8 @@ jobs:
         run: |
           git checkout ${{ steps.git_info.outputs.commit_canister }}
           rsync -av --no-t "/tmp/target-canister/" "$PWD/target/"
+          mtime=$(date +%Y%m%d%H%M.%S)
+          find ./target -exec touch -t "$mtime" {} +
 
       - name: Build canister
         if: steps.cache-canister.outputs.cache-hit != 'true'
