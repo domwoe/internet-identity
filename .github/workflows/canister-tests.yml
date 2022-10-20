@@ -203,18 +203,28 @@ jobs:
       - name: Figure out commits
         id: git_info
         run: |
-          commit_deps=$(git log -n 1 --pretty=format:%H -- Cargo.* src/*/Cargo.toml rust-toolchain.toml)
+          commit_deps=$(git log -1 --pretty=format:%H -- Cargo.* src/*/Cargo.toml rust-toolchain.toml)
           echo "::set-output name=commit_deps::$commit_deps"
-          timestamp_deps=$(git log -n 1 --pretty=format:%H "$commit_deps")
+          timestamp_deps=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' "$commit_deps")
           echo "::set-output name=timestamp_deps::$timestamp_deps"
-          commit_canister=$(git log -n 1 --pretty=format:%H -- src/[^frontend]*)
+
+          commit_canister=$(git log -1 --pretty=format:%H -- src/[^frontend]*)
           echo "::set-output name=commit_canister::$commit_canister"
-          timestamp_canister=$(git log -n 1 --pretty=format:%H "$commit_canister")
+          timestamp_canister=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' "$commit_canister")
           echo "::set-output name=timestamp_canister::$timestamp_canister"
-          commit_now=$(git log -n 1 --pretty=format:%H)
+
+          commit_now=$(git log -1 --pretty=format:%H)
           echo "::set-output name=commit_now::$commit_now"
-          timestamp_now=$(git log -n 1 --pretty=format:%H "$commit_now")
+          timestamp_now=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' "$commit_now")
           echo "::set-output name=timestamp_now::$timestamp_now"
+
+          echo "$commit_deps"
+          echo "$commit_canister"
+          echo "$commit_now"
+
+          echo "$timestamp_deps"
+          echo "$timestamp_canister"
+          echo "$timestamp_now"
 
       - uses: ./.github/actions/bootstrap
 
