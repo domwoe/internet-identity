@@ -254,7 +254,7 @@ jobs:
       - name: Download Cargo Dependencies
         if: steps.cache-dot-cargo.outputs.cache-hit != 'true'
         run: |
-          git co ${{ steps.git_info.outputs.commit_deps }}
+          git checkout ${{ steps.git_info.outputs.commit_deps }}
           cargo fetch
           find ~/.cargo -exec touch -t ${{ steps.git_info.outputs.timestamp_deps }} {} +
 
@@ -272,7 +272,7 @@ jobs:
       - name: Build deps
         if: ${{ ! (steps.cache-deps.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_deps) }}
         run: |
-          git co ${{ steps.git_info.outputs.commit_deps }}
+          git checkout ${{ steps.git_info.outputs.commit_deps }}
           git ls-tree -r --name-only HEAD | while read filename; do
               git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
               TZ=UTC0 touch -t "$git_time" "$filename"
@@ -296,7 +296,7 @@ jobs:
       - name: Build canister
         if: ${{ ! (steps.cache-canister.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_canister) }}
         run: |
-          git co ${{ steps.git_info.outputs.commit_canister }}
+          git checkout ${{ steps.git_info.outputs.commit_canister }}
           git ls-tree -r --name-only HEAD | while read filename; do
               git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
               TZ=UTC0 touch -t "$git_time" "$filename"
@@ -309,7 +309,7 @@ jobs:
       # Build the tests
       - name: Build canister
         run: |
-          git co ${{ steps.git_info.outputs.commit_now }}
+          git checkout ${{ steps.git_info.outputs.commit_now }}
           git ls-tree -r --name-only HEAD | while read filename; do
               git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
               TZ=UTC0 touch -t "$git_time" "$filename"
