@@ -180,6 +180,11 @@ jobs:
   ###########################
   # The Rust canister tests #
   ###########################
+  #
+        # TODO: add this somewhere
+        # For each file involved in the build, set the mtime back to the commit date of the last edit. This means we get
+        # meaningful mtimes that cargo can work use to decide what part of the target/ cache to invalidate as opposed
+        # to just thrashing everything. This means that the build is a no-op for anything that doesn't change the actual test code.
 
   # Run the tests, user the output of the docker build as Wasm module
   # (note: this runs _all_ cargo tests)
@@ -202,17 +207,20 @@ jobs:
           echo "::set-output name=commit_deps::$commit_deps"
           timestamp_deps=$(git log -n 1 --pretty=format:%H "$commit_deps")
           echo "::set-output name=timestamp_deps::$timestamp_deps"
-          commit_rust=$(git log -n 1 --pretty=format:%H -- src/[^frontend]*)
-          echo "::set-output name=commit_rust::$commit_rust"
-          timestamp_rust=$(git log -n 1 --pretty=format:%H "$commit_rust")
-          echo "::set-output name=timestamp_rust::$timestamp_rust"
+          commit_canister=$(git log -n 1 --pretty=format:%H -- src/[^frontend]*)
+          echo "::set-output name=commit_canister::$commit_canister"
+          timestamp_canister=$(git log -n 1 --pretty=format:%H "$commit_canister")
+          echo "::set-output name=timestamp_canister::$timestamp_canister"
+          commit_now=$(git log -n 1 --pretty=format:%H)
+          echo "::set-output name=commit_now::$commit_now"
+          timestamp_now=$(git log -n 1 --pretty=format:%H "$commit_now")
+          echo "::set-output name=timestamp_now::$timestamp_now"
 
       - uses: ./.github/actions/bootstrap
 
       # Rustup only installs cargo on the first call, so we use a dedicated step to get a good idea of how
       # time is spent in each step separately
       - run: cargo check --help
-
 
       - name: 'Download II wasm'
         uses: actions/download-artifact@v3
@@ -236,14 +244,33 @@ jobs:
           touch dist/favicon.ico
           touch dist/ic-badge.svg
 
-        # For each file involved in the build, set the mtime back to the commit date of the last edit. This means we get
-        # meaningful mtimes that cargo can work use to decide what part of the target/ cache to invalidate as opposed
-        # to just thrashing everything. This means that the build is a no-op for anything that doesn't change the actual test code.
-      - name: Set timestamps
-        id: timestamps
-        run: |
+      - uses: actions/cache@v3
+        id: cache-dot-cargo
+        if: steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_deps
+        with:
+          path: ~/.cargo
+          key: tmp-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
 
-      - name: Checkout last deps update
+      - name: Download Cargo Dependencies
+        if: steps.cache-dot-cargo.outputs.cache-hit != 'true'
+        run: |
+          git co ${{ steps.git_info.outputs.commit_deps }}
+          cargo fetch
+          find ~/.cargo -exec touch -t ${{ steps.git_info.outputs.timestamp_deps }} {} +
+
+      # Deps:
+
+      - uses: actions/cache@v3
+        id: cache-deps
+        with:
+          path: /tmp/target-deps
+          key: tmp-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-deps
+
+      - name: Recover deps
+        run: if [ -d /tmp/target-deps/ ]; then cp -a "/tmp/target-deps/" "$PWD/target/"; fi
+
+      - name: Build deps
+        if: !(steps.cache-deps.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_deps)
         run: |
           git co ${{ steps.git_info.outputs.commit_deps }}
           git ls-tree -r --name-only HEAD | while read filename; do
@@ -251,48 +278,43 @@ jobs:
               TZ=UTC0 touch -t "$git_time" "$filename"
             done
 
-      - uses: actions/cache@v3
-        with:
-          path: ~/.cargo
-          key: ${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo-tmp
-
-      - name: Download Cargo Dependencies
-        run: |
-          cargo fetch
-          find ~/.cargo -exec touch -t ${{ steps.git_info.outputs.timestamp_deps }} {} +
-
-      # rust dependencies
-
-      - uses: actions/cache@v3
-        id: cache-deps
-        with:
-          path: /tmp/target-deps
-          key: ${{ runner.os }}-${{ steps.commits.outputs.commit_deps }}-target-deps-tmp
-
-      - name: Build & Cache Cargo Dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: |
           cargo build --tests --release
-          mv "$PWD/target/" "/tmp/target-deps/"
+          find ./target -exec touch -t ${{ steps.git_info.outputs.timestamp_deps }} {} +
+          cp -a "$PWD/target/" "/tmp/target-deps/"
+
+      # Canister:
 
       - uses: actions/cache@v3
-        id: cache-rust
+        id: cache-canister
         with:
-          path: /tmp/target-rust
-          key: ${{ runner.os }}-cargo-tests-${{ steps.timestamps.outputs.latest-timestamp }}-blah
+          path: /tmp/target-canister
+          key: tmp-${{ runner.os }}-${{ steps.git_info.outputs.commit_canister }}-canister
 
-      - name: Build & Cache Tests
-        shell: bash
+      - name: Recover canister
+        run: if [ -d /tmp/target-canister/ ]; then rsync -avt "/tmp/target-canister/" "$PWD/target/"; fi
+
+      - name: Build canister
+        if: !(steps.cache-canister.outputs.cache-hit == 'true' && steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_canister)
         run: |
+          git co ${{ steps.git_info.outputs.commit_canister }}
+          git ls-tree -r --name-only HEAD | while read filename; do
+              git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
+              TZ=UTC0 touch -t "$git_time" "$filename"
+            done
 
-          find ./target -exec touch -t "$cargo_lock_timestamp" {} +
-          if [ -d /tmp/target-tests/ ]
-          then
-            find ./tmp/target-tests -exec touch -t ${{ steps.timestamps.outputs.latest-timestamp }} {} +
-            rsync -avt /tmp/target-tests/ ./target/
-          fi
           cargo build --tests --release
-          rsync -av --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-tests/"
+          find ./target -exec touch -t ${{ steps.git_info.outputs.timestamp_canister }} {} +
+          rsync -avt --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-canister/"
+
+      # Build the tests
+      - name: Build canister
+        run: |
+          git co ${{ steps.git_info.outputs.commit_now }}
+          git ls-tree -r --name-only HEAD | while read filename; do
+              git_time=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' -- "$filename")
+              TZ=UTC0 touch -t "$git_time" "$filename"
+            done
+          cargo build --tests --release
 
       - name: Run Tests
         shell: bash
