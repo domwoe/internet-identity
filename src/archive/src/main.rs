@@ -93,7 +93,7 @@ thread_local! {
     });
 }
 
-/// Yah, Reserve the first stable memory page for the configuration stable cell.
+/// Yaah, Reserve the first stable memory page for the configuration stable cell.
 fn config_memory() -> Memory {
     RestrictedMemory::new(DefaultMemoryImpl::default(), 0..1)
 }

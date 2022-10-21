@@ -289,6 +289,7 @@ jobs:
           rsync -av --no-t "/tmp/target-deps/" "$PWD/target/"
           mtime=$(date +%Y%m%d%H%M.%S)
           find ./target -exec touch -t "$mtime" {} +
+          find "$PWD/target/" -exec touch -t "$mtime" {} +
 
       - name: Build deps
         if: steps.cache-deps.outputs.cache-hit != 'true'
