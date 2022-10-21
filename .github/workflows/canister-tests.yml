@@ -259,13 +259,14 @@ jobs:
         if: steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_deps
         with:
           path: /tmp/dot-cargo
-          key: tmp3-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
+          key: tmp4-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
 
       - name: Recover Cargo Dependencies
         if: steps.cache-dot-cargo.outputs.cache-hit == 'true'
         run: |
           git checkout ${{ steps.git_info.outputs.commit_deps }}
-          rsync -av --no-t "/tmp/dot-cargo/" "$HOME/.cargo/"
+          cp -a "/tmp/dot-cargo/" "$HOME/.cargo/"
+          find "$HOME/.cargo/" -exec touch -t "$mtime" {} +
 
       - name: Download Cargo Dependencies
         if: steps.cache-dot-cargo.outputs.cache-hit != 'true'
