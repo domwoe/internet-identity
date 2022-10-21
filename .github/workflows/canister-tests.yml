@@ -256,7 +256,6 @@ jobs:
 
       - uses: actions/cache@v3
         id: cache-dot-cargo
-        if: steps.git_info.outputs.timestamp_now > steps.git_info.outputs.timestamp_deps
         with:
           path: /tmp/dot-cargo
           key: tmp4-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
