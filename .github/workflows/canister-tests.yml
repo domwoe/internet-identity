@@ -266,7 +266,6 @@ jobs:
         run: |
           git checkout ${{ steps.git_info.outputs.commit_deps }}
           cp -a "/tmp/dot-cargo/" "$HOME/.cargo/"
-          find "$HOME/.cargo/" -exec touch -t "$mtime" {} +
 
       - name: Download Cargo Dependencies
         if: steps.cache-dot-cargo.outputs.cache-hit != 'true'
