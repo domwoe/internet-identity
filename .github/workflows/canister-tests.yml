@@ -205,26 +205,15 @@ jobs:
         run: |
           commit_deps=$(git log -1 --pretty=format:%H -- Cargo.* src/*/Cargo.toml rust-toolchain.toml)
           echo "::set-output name=commit_deps::$commit_deps"
-          timestamp_deps=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' "$commit_deps")
-          echo "::set-output name=timestamp_deps::$timestamp_deps"
+          echo "deps: $commit_deps"
 
           commit_canister=$(git log -1 --pretty=format:%H -- src/[^frontend]*)
           echo "::set-output name=commit_canister::$commit_canister"
-          timestamp_canister=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' "$commit_canister")
-          echo "::set-output name=timestamp_canister::$timestamp_canister"
+          echo "canister: $commit_canister"
 
           commit_now=$(git log -1 --pretty=format:%H)
           echo "::set-output name=commit_now::$commit_now"
-          timestamp_now=$(TZ=UTC0 git log -1 --date='format-local:%Y%m%d%H%M' --format='%cd' "$commit_now")
-          echo "::set-output name=timestamp_now::$timestamp_now"
-
-          echo "$commit_deps"
-          echo "$commit_canister"
-          echo "$commit_now"
-
-          echo "$timestamp_deps"
-          echo "$timestamp_canister"
-          echo "$timestamp_now"
+          echo "now: $commit_now"
 
       - uses: ./.github/actions/bootstrap
 
@@ -258,21 +247,20 @@ jobs:
         id: cache-dot-cargo
         with:
           path: /tmp/dot-cargo
-          key: tmp4-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
+          key: tmpp-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
 
-      - name: Recover Cargo Dependencies
+      - run: git checkout ${{ steps.git_info.outputs.commit_deps }}
+
+      - name: Cargo cache (cached)
         if: steps.cache-dot-cargo.outputs.cache-hit == 'true'
         run: |
-          git checkout ${{ steps.git_info.outputs.commit_deps }}
           cp -a "/tmp/dot-cargo/" "$HOME/.cargo/"
-          mtime=$(date +%Y%m%d%H%M.%S)
-          find "$HOME/.cargo/" -exec touch -t "$mtime" {} +
+          find "$HOME/.cargo/" -exec touch -t "$(date +%Y%m%d%H%M.%S)" {} +
 
-      - name: Download Cargo Dependencies
+      - name: Cargo cache
         if: steps.cache-dot-cargo.outputs.cache-hit != 'true'
         run: |
-          git checkout ${{ steps.git_info.outputs.commit_deps }}
-          cargo fetch
+          cargo fetch --locked
           cp -a "$HOME/.cargo/" "/tmp/dot-cargo/"
 
       # Deps:
@@ -281,20 +269,20 @@ jobs:
         id: cache-deps
         with:
           path: /tmp/target-deps
-          key: tmp3-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-deps
+          key: tmpp-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-deps
 
-      - name: Recover deps
+      - name: Dependencies (cached)
         if: steps.cache-deps.outputs.cache-hit == 'true'
         run: |
-          rsync -av --no-t "/tmp/target-deps/" "$PWD/target/"
+          cp -a "/tmp/target-deps/" "$PWD/target/"
           mtime=$(date +%Y%m%d%H%M.%S)
           find ./target -exec touch -t "$mtime" {} +
           find "/tmp/target-deps/" -exec touch -t "$mtime" {} +
 
-      - name: Build deps
+      - name: Dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
-          cargo build --tests --release
+          cargo build --tests --release --frozen
           cp -a "$PWD/target/" "/tmp/target-deps/"
 
       # Canister:
@@ -303,21 +291,20 @@ jobs:
         id: cache-canister
         with:
           path: /tmp/target-canister
-          key: tmp3-${{ runner.os }}-${{ steps.git_info.outputs.commit_canister }}-canister
+          key: tmpp-${{ runner.os }}-${{ steps.git_info.outputs.commit_canister }}-canister
 
-      - name: Recover canister
+      - run: git checkout ${{ steps.git_info.outputs.commit_canister }}
+
+      - name: Canister code (cached)
         if: steps.cache-canister.outputs.cache-hit == 'true'
         run: |
-          git checkout ${{ steps.git_info.outputs.commit_canister }}
-          rsync -av --no-t "/tmp/target-canister/" "$PWD/target/"
-          mtime=$(date +%Y%m%d%H%M.%S)
-          find ./target -exec touch -t "$mtime" {} +
+          find /tmp/target-canister -exec touch -t "$(date +%Y%m%d%H%M.%S)" {} +
+          rsync -av "/tmp/target-canister/" "$PWD/target/"
 
-      - name: Build canister
+      - name: Canister code
         if: steps.cache-canister.outputs.cache-hit != 'true'
         run: |
-          git checkout ${{ steps.git_info.outputs.commit_canister }}
-          cargo build --tests --release
+          cargo build --tests --release --frozen
           rsync -av --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-canister/"
 
       # Build the tests
