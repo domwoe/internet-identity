@@ -12,7 +12,6 @@ use std::marker::PhantomData;
 const HEADER_SIZE: u64 = 512;
 const DEFAULT_ENTRY_SIZE: u16 = 2048;
 const EMPTY_SALT: [u8; 32] = [0; 32];
-const WASM_PAGE_SIZE: u64 = 65536;
 const GB: u64 = 1 << 30;
 const STABLE_MEMORY_SIZE: u64 = 8 * GB;
 /// We reserve last ~10% of the stable memory for later new features.
@@ -176,12 +175,12 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
             self.header.entry_size as usize,
             Reader::new(&self.memory, stable_offset),
         );
-        let mut buf = vec![0; self.header.entry_size as usize];
 
+        let mut len_buf = vec![0; 2];
         reader
-            .read(&mut buf.as_slice())
+            .read(&mut len_buf.as_mut_slice())
             .expect("failed to read memory");
-        let len = u16::from_le_bytes(buf[0..2].try_into().unwrap()) as usize;
+        let len = u16::from_le_bytes(len_buf.try_into().unwrap()) as usize;
 
         // This error most likely indicates stable memory corruption.
         if len > self.value_size_limit() {
@@ -192,8 +191,11 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
             ))
         }
 
-        let data: T =
-            candid::decode_one(&buf[2..2 + len]).map_err(StorageError::DeserializationError)?;
+        let mut data_buf = vec![0; len];
+        reader
+            .read(&mut data_buf.as_mut_slice())
+            .expect("failed to read memory");
+        let data: T = candid::decode_one(&data_buf).map_err(StorageError::DeserializationError)?;
 
         Ok(data)
     }

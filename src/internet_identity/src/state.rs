@@ -1,10 +1,10 @@
 use crate::storage::DEFAULT_RANGE_SIZE;
 use crate::{Salt, Storage};
 use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::api::stable::CanisterStableMemory;
 use ic_cdk::api::time;
 use ic_cdk::{call, trap};
 use ic_certified_map::{Hash, RbTree};
+use ic_stable_structures::DefaultMemoryImpl;
 use internet_identity::signature_map::SignatureMap;
 use internet_identity_interface::*;
 use std::cell::{Cell, RefCell};
@@ -107,7 +107,7 @@ pub struct Challenge {
 }
 
 struct State {
-    storage: RefCell<Storage<Vec<DeviceDataInternal>, CanisterStableMemory>>,
+    storage: RefCell<Storage<Vec<DeviceDataInternal>, DefaultMemoryImpl>>,
     sigs: RefCell<SignatureMap>,
     asset_hashes: RefCell<AssetHashes>,
     last_upgrade_timestamp: Cell<Timestamp>,
@@ -130,7 +130,7 @@ impl Default for State {
                     FIRST_USER_ID,
                     FIRST_USER_ID.saturating_add(DEFAULT_RANGE_SIZE),
                 ),
-                CanisterStableMemory::default(),
+                DefaultMemoryImpl::default(),
             )),
             sigs: RefCell::new(SignatureMap::default()),
             asset_hashes: RefCell::new(AssetHashes::default()),
@@ -189,7 +189,7 @@ pub fn salt() -> [u8; 32] {
 pub fn initialize_from_stable_memory() {
     STATE.with(|s| {
         s.last_upgrade_timestamp.set(time() as u64);
-        match Storage::from_memory(CanisterStableMemory::default()) {
+        match Storage::from_memory(DefaultMemoryImpl::default()) {
             Some(mut storage) => {
                 let (lo, hi) = storage.assigned_user_number_range();
                 let max_entries = storage.max_entries() as u64;
@@ -263,11 +263,13 @@ pub fn signature_map_mut<R>(f: impl FnOnce(&mut SignatureMap) -> R) -> R {
     STATE.with(|s| f(&mut *s.sigs.borrow_mut()))
 }
 
-pub fn storage<R>(f: impl FnOnce(&Storage<Vec<DeviceDataInternal>>) -> R) -> R {
+pub fn storage<R>(f: impl FnOnce(&Storage<Vec<DeviceDataInternal>, DefaultMemoryImpl>) -> R) -> R {
     STATE.with(|s| f(&*s.storage.borrow()))
 }
 
-pub fn storage_mut<R>(f: impl FnOnce(&mut Storage<Vec<DeviceDataInternal>>) -> R) -> R {
+pub fn storage_mut<R>(
+    f: impl FnOnce(&mut Storage<Vec<DeviceDataInternal>, DefaultMemoryImpl>) -> R,
+) -> R {
     STATE.with(|s| f(&mut *s.storage.borrow_mut()))
 }
 
