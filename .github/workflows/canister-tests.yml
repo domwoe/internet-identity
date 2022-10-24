@@ -235,21 +235,21 @@ jobs:
         id: cache-dot-cargo
         with:
           path: /tmp/dot-cargo
-          key: tmpp-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
+          key: tmpp2-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
 
       - run: git checkout ${{ steps.git_info.outputs.commit_deps }}
 
       - name: Cargo cache (cached)
         if: steps.cache-dot-cargo.outputs.cache-hit == 'true'
         run: |
-          cp -a "/tmp/dot-cargo/" "$HOME/.cargo/"
+          rsync -av "/tmp/dot-cargo/" "$HOME/.cargo/"
           find "$HOME/.cargo/" -exec touch -t "$(date +%Y%m%d%H%M.%S)" {} +
 
       - name: Cargo cache
         if: steps.cache-dot-cargo.outputs.cache-hit != 'true'
         run: |
           cargo fetch --locked
-          cp -a "$HOME/.cargo/" "/tmp/dot-cargo/"
+          rsync -av "$HOME/.cargo/" "/tmp/dot-cargo/"
 
       # Deps:
 
@@ -257,12 +257,12 @@ jobs:
         id: cache-deps
         with:
           path: /tmp/target-deps
-          key: tmpp-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-deps
+          key: tmpp2-${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-deps
 
       - name: Dependencies (cached)
         if: steps.cache-deps.outputs.cache-hit == 'true'
         run: |
-          cp -a "/tmp/target-deps/" "$PWD/target/"
+          rsync -av "/tmp/target-deps/" "$PWD/target/"
           mtime=$(date +%Y%m%d%H%M.%S)
           find ./target -exec touch -t "$mtime" {} +
           find "/tmp/target-deps/" -exec touch -t "$mtime" {} +
@@ -271,7 +271,7 @@ jobs:
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cargo build --tests --release --frozen
-          cp -a "$PWD/target/" "/tmp/target-deps/"
+          rsync -av "$PWD/target/" "/tmp/target-deps/"
 
       # Canister:
 
@@ -279,7 +279,7 @@ jobs:
         id: cache-canister
         with:
           path: /tmp/target-canister
-          key: tmpp-${{ runner.os }}-${{ steps.git_info.outputs.commit_canister }}-canister
+          key: tmpp2-${{ runner.os }}-${{ steps.git_info.outputs.commit_canister }}-canister
 
       - run: git checkout ${{ steps.git_info.outputs.commit_canister }}
 
@@ -298,7 +298,6 @@ jobs:
       # Build the tests
       - name: Build
         run: |
-          find $HOME/.cargo/git -name 'captcha-*' -exec stat {} +
           git checkout ${{ steps.git_info.outputs.commit_now }}
           cargo build --tests --release --frozen
 
