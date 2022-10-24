@@ -287,7 +287,8 @@ jobs:
         if: steps.cache-canister.outputs.cache-hit == 'true'
         run: |
           find /tmp/target-canister -exec touch -t "$(date +%Y%m%d%H%M.%S)" {} +
-          rsync -av "/tmp/target-canister/" "$PWD/target/"
+          rsync -av /tmp/target-canister/ "$PWD/target/"
+          cargo build --tests --release --frozen
 
       - name: Canister code
         if: steps.cache-canister.outputs.cache-hit != 'true'
