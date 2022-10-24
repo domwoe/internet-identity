@@ -73,7 +73,7 @@ dependencies = [
  "hex",
  "ic-cdk",
  "ic-cdk-macros",
- "ic-stable-structures",
+ "ic-stable-structures 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ic-state-machine-tests",
  "internet_identity_interface",
  "metrics_encoder",
@@ -1748,7 +1748,7 @@ dependencies = [
  "ic-protobuf",
  "ic-registry-subnet-features",
  "ic-replicated-state",
- "ic-stable-structures",
+ "ic-stable-structures 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ic-state-layout",
  "ic-types 0.8.0",
  "lazy_static",
@@ -2956,6 +2956,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8350199eb1cd4cbe548897008d701ee8cc03c3945d7a29b8d19454900ad86ca5"
 
 [[package]]
+name = "ic-stable-structures"
+version = "0.1.1"
+source = "git+https://github.com/dfinity/stable-structures?rev=a01283ff699c6749574f6c0fea85a9c033de6e8d#a01283ff699c6749574f6c0fea85a9c033de6e8d"
+
+[[package]]
 name = "ic-state-layout"
 version = "0.8.0"
 source = "git+https://github.com/dfinity/ic?rev=d4729f7303caa02b4bde2e930cf78260a0e23c2a#d4729f7303caa02b4bde2e930cf78260a0e23c2a"
@@ -3303,6 +3308,7 @@ dependencies = [
  "ic-cdk",
  "ic-cdk-macros",
  "ic-certified-map",
+ "ic-stable-structures 0.1.1 (git+https://github.com/dfinity/stable-structures?rev=a01283ff699c6749574f6c0fea85a9c033de6e8d)",
  "ic-state-machine-tests",
  "internet_identity_interface",
  "lazy_static",

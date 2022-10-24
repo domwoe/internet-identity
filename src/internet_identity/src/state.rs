@@ -1,6 +1,7 @@
 use crate::storage::DEFAULT_RANGE_SIZE;
 use crate::{Salt, Storage};
 use candid::{CandidType, Deserialize, Principal};
+use ic_cdk::api::stable::CanisterStableMemory;
 use ic_cdk::api::time;
 use ic_cdk::{call, trap};
 use ic_certified_map::{Hash, RbTree};
@@ -106,7 +107,7 @@ pub struct Challenge {
 }
 
 struct State {
-    storage: RefCell<Storage<Vec<DeviceDataInternal>>>,
+    storage: RefCell<Storage<Vec<DeviceDataInternal>, CanisterStableMemory>>,
     sigs: RefCell<SignatureMap>,
     asset_hashes: RefCell<AssetHashes>,
     last_upgrade_timestamp: Cell<Timestamp>,
@@ -124,10 +125,13 @@ impl Default for State {
     fn default() -> Self {
         const FIRST_USER_ID: UserNumber = 10_000;
         Self {
-            storage: RefCell::new(Storage::new((
-                FIRST_USER_ID,
-                FIRST_USER_ID.saturating_add(DEFAULT_RANGE_SIZE),
-            ))),
+            storage: RefCell::new(Storage::new(
+                (
+                    FIRST_USER_ID,
+                    FIRST_USER_ID.saturating_add(DEFAULT_RANGE_SIZE),
+                ),
+                CanisterStableMemory::default(),
+            )),
             sigs: RefCell::new(SignatureMap::default()),
             asset_hashes: RefCell::new(AssetHashes::default()),
             last_upgrade_timestamp: Cell::new(0),
@@ -185,7 +189,7 @@ pub fn salt() -> [u8; 32] {
 pub fn initialize_from_stable_memory() {
     STATE.with(|s| {
         s.last_upgrade_timestamp.set(time() as u64);
-        match Storage::from_stable_memory() {
+        match Storage::from_memory(CanisterStableMemory::default()) {
             Some(mut storage) => {
                 let (lo, hi) = storage.assigned_user_number_range();
                 let max_entries = storage.max_entries() as u64;
