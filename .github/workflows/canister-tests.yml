@@ -190,7 +190,7 @@ jobs:
   # (note: this runs _all_ cargo tests)
   canister-tests:
     runs-on: ${{ matrix.os }}
-    needs: [docker-build-ii, docker-build-archive]
+      # needs: [docker-build-ii, docker-build-archive]
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
@@ -220,18 +220,6 @@ jobs:
       # Rustup only installs cargo on the first call, so we use a dedicated step to get a good idea of how
       # time is spent in each step separately
       - run: cargo check --help
-
-      - name: 'Download II wasm'
-        uses: actions/download-artifact@v3
-        with:
-          name: internet_identity_test.wasm
-          path: .
-
-      - name: 'Download archive wasm'
-        uses: actions/download-artifact@v3
-        with:
-          name: archive.wasm
-          path: .
 
       - name: Create dummy assets
         run: |
@@ -310,11 +298,26 @@ jobs:
       # Build the tests
       - name: Build
         run: |
+          find $HOME/.cargo/git -name 'captcha-*' -exec stat {} +
           git checkout ${{ steps.git_info.outputs.commit_now }}
-          cargo build --tests --release
+          cargo build --tests --release --frozen
+
+      - name: 'Download II wasm'
+        if: false
+        uses: actions/download-artifact@v3
+        with:
+          name: internet_identity_test.wasm
+          path: .
+
+      - name: 'Download archive wasm'
+        if: false
+        uses: actions/download-artifact@v3
+        with:
+          name: archive.wasm
+          path: .
 
       - name: Run Tests
-        shell: bash
+        if: false
         run: |
           mv internet_identity_test.wasm internet_identity.wasm
           # NOTE: Here we download a changing asset (i.e. the latest release) meaning that in some rare cases (after a new release)
